@@ -1,0 +1,66 @@
+=== CLOUD DATA-CENTER DIRECT LATENCY BENCHMARK ===
+Binance CloudFront Edge RTT : 0.665781s TCP | 0.987282s TTFB
+Kraken Spot Edge RTT        : 0.007976s TCP | 0.191410s TTFB
+Base Mainnet L2 RPC RTT     : 0.228931s TCP | 0.331159s TTFB
+
+==========================================================================================
+ HYDRA-HFT v4.0 — DISTRIBUTED TRI-NODE ARBITRAGE ENGINE
+==========================================================================================
+ Active Node Role     : TOKYO (ap-northeast-1)
+ Execution Mode       : DRY-RUN (Paper-Trading Simulator)
+ Pinned CPU Core ID   : Core #2 (ZERO-ALLOCATION HOT PATH)
+ Starting Equity      : €150.00 (HWM Drawdown Breaker: -1.00% = €148.50)
+ Cycle Profit Hurdle  : 0.80 bps net | Min DEX Net Profit: €0.01
+------------------------------------------------------------------------------------------
+ TICK | CYCLE PATH (k-HOP)               | NET BPS   | OPT INPUT  | NET PNL    | EQUITY    | HOT LATENCY
+------------------------------------------------------------------------------------------
+ #1   | EUR->USDT->TRY->BRL->EUR         | + 28.80   | €  150.00  | +€  0.432  | € 150.43  |   7.22 us
+ #2   | EUR->USDT->BTC->EUR              | + 34.11   | €  150.43  | +€  0.513  | € 150.95  |   4.23 us
+ #3   | EUR->USDT->TRY->BRL->EUR         | + 31.32   | €  150.94  | +€  0.473  | € 151.42  |   4.06 us
+ #4   | EUR->USDT->BTC->EUR              | + 35.69   | €  151.41  | +€  0.540  | € 151.96  |   3.91 us
+ #5   | EUR->USDT->TRY->BRL->EUR         | + 33.84   | €  151.95  | +€  0.514  | € 152.47  |   4.16 us
+ #6   | EUR->USDT->BTC->EUR              | + 37.26   | €  152.47  | +€  0.568  | € 153.04  |   3.66 us
+ #7   | EUR->USDT->TRY->BRL->EUR         | + 36.36   | €  153.04  | +€  0.556  | € 153.60  |   4.27 us
+ #8   | EUR->USDT->BTC->EUR              | + 38.84   | €  153.59  | +€  0.597  | € 154.19  |   3.53 us
+ #9   | EUR->USDT->TRY->BRL->EUR         | + 38.88   | €  154.19  | +€  0.600  | € 154.79  |   3.45 us
+ #10  | EUR->USDT->BTC->EUR              | + 40.42   | €  154.79  | +€  0.626  | € 155.42  |   3.58 us
+==========================================================================================
+ SESSION SUMMARY [TOKYO (ap-northeast-1)] | Executed Cycles: 10 | Net Profit: +€5.42 | Final Equity: €155.42
+==========================================================================================
+
+==========================================================================================
+ HYDRA-HFT v4.0 — 48-HOUR LIVE MARKET PAPER-TRADING VALIDATOR (€150.00 STARTING EQUITY)
+==========================================================================================
+ Allocation Split     : €50.00 Tokyo (Binance) | €50.00 London (Kraken) | €50.00 Frankfurt (Base L2)
+ Atomic L2 Flash Line : €1500.00 (Balancer Vault 0.00% fee FlashLoan on Base Mainnet)
+ Telemetry CSV Log    : logs/paper_48h_150eur.csv
+ Live Status Report   : logs/paper_48h_live_status.md
+------------------------------------------------------------------------------------------
+ [Poll #1 /25] RTT= 91.9ms | Solver=45.38us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +2.18bps | Net= +0.18bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #2 /25] RTT= 90.8ms | Solver=45.47us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +2.36bps | Net= +0.36bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #3 /25] RTT= 82.2ms | Solver=45.23us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +2.36bps | Net= +0.36bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #4 /25] RTT= 86.6ms | Solver=45.60us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.88bps | Net= -0.12bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #5 /25] RTT= 84.0ms | Solver=44.96us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +2.12bps | Net= +0.12bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #6 /25] RTT= 88.9ms | Solver=45.17us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +2.12bps | Net= +0.12bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #7 /25] RTT= 98.3ms | Solver=45.08us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +2.12bps | Net= +0.12bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #8 /25] RTT= 92.2ms | Solver=56.20us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +2.12bps | Net= +0.12bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #9 /25] RTT= 84.5ms | Solver=45.09us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.39bps | Net= -0.61bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #10/25] RTT= 84.9ms | Solver=61.96us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.39bps | Net= -0.61bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #11/25] RTT= 96.9ms | Solver=44.77us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.39bps | Net= -0.61bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #12/25] RTT= 91.6ms | Solver=45.37us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.21bps | Net= -0.79bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #13/25] RTT= 83.2ms | Solver=44.99us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.21bps | Net= -0.79bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #14/25] RTT= 90.1ms | Solver=45.97us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.21bps | Net= -0.79bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #15/25] RTT= 91.5ms | Solver=46.19us | [UNI3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +0.59bps | Net= -1.41bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #16/25] RTT= 89.1ms | Solver=71.26us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +0.02bps | Net= -1.98bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #17/25] RTT= 93.8ms | Solver=45.01us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.28bps | Net= -1.72bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #18/25] RTT= 88.4ms | Solver=61.59us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.28bps | Net= -1.72bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #19/25] RTT= 93.8ms | Solver=71.48us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.28bps | Net= -1.72bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #20/25] RTT= 89.3ms | Solver=45.00us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.28bps | Net= -1.72bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #21/25] RTT= 88.2ms | Solver=44.89us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.28bps | Net= -1.72bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #22/25] RTT= 94.2ms | Solver=65.93us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.28bps | Net= -1.72bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #23/25] RTT= 87.8ms | Solver=43.85us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.54bps | Net= -1.46bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #24/25] RTT= 90.2ms | Solver=44.15us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.50bps | Net= -1.50bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #25/25] RTT= 87.9ms | Solver=46.61us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.50bps | Net= -1.50bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+------------------------------------------------------------------------------------------
+ PAPER-TRADING SESSION SUMMARY: Starting Equity €150.00 -> Current Equity €150.0000 (Net PnL: +€0.0000, +0.000%)
+==========================================================================================
