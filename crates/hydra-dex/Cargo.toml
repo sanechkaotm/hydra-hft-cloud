@@ -1,0 +1,10 @@
+[package]
+name = "hydra-dex"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+hydra-core = { workspace = true }
+hydra-graph = { workspace = true }

@@ -1,0 +1,34 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/hydra-core",
+    "crates/hydra-graph",
+    "crates/hydra-net",
+    "crates/hydra-cex",
+    "crates/hydra-dex",
+    "crates/hydra-risk",
+    "crates/hydra-node",
+]
+
+[workspace.package]
+version = "4.0.0"
+edition = "2024"
+authors = ["Hydra-HFT Core Engineering"]
+license = "MIT"
+
+[workspace.dependencies]
+hydra-core = { path = "crates/hydra-core" }
+hydra-graph = { path = "crates/hydra-graph" }
+hydra-net = { path = "crates/hydra-net" }
+hydra-cex = { path = "crates/hydra-cex" }
+hydra-dex = { path = "crates/hydra-dex" }
+hydra-risk = { path = "crates/hydra-risk" }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+debug = false
+overflow-checks = false

@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  hydra-tokyo:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: hydra-node-tokyo
+    network_mode: host
+    cpuset: "2"
+    cap_add:
+      - SYS_NICE
+      - NET_ADMIN
+      - IPC_LOCK
+    ulimits:
+      memlock: -1
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    env_file:
+      - ../.env.example
+    command: ["--role", "tokyo", "--dry-run", "--ticks", "100"]
+    restart: unless-stopped
+
+  hydra-london:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: hydra-node-london
+    network_mode: host
+    cpuset: "3"
+    cap_add:
+      - SYS_NICE
+      - NET_ADMIN
+      - IPC_LOCK
+    ulimits:
+      memlock: -1
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    env_file:
+      - ../.env.example
+    command: ["--role", "london", "--dry-run", "--ticks", "100"]
+    restart: unless-stopped
+
+  hydra-frankfurt:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: hydra-node-frankfurt
+    network_mode: host
+    cpuset: "4"
+    cap_add:
+      - SYS_NICE
+      - NET_ADMIN
+      - IPC_LOCK
+    ulimits:
+      memlock: -1
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    env_file:
+      - ../.env.example
+    command: ["--role", "frankfurt", "--dry-run", "--ticks", "100"]
+    restart: unless-stopped

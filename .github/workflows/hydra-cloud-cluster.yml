@@ -1,0 +1,64 @@
+name: Hydra-HFT v4.0 Forever-Free Cloud Cluster (€150 Live Validator)
+
+on:
+  workflow_dispatch:
+    inputs:
+      polls:
+        description: "Number of live market polls per cloud run (0 = continuous until runner window ends)"
+        required: false
+        default: "30"
+      capital_eur:
+        description: "Starting capital in EUR"
+        required: false
+        default: "150"
+  schedule:
+    # Automatically re-launches every 6 hours to keep 24/7/365 cloud telemetry running forever for €0.00
+    - cron: "0 */6 * * *"
+
+jobs:
+  hydra-cloud-trinode:
+    name: "Hydra-HFT Cloud Linux Server (10Gbps Data Center Backbone)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Checkout Hydra-HFT v4.0 Monorepo
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain (2024 Edition)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Build Artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Compile Hydra-HFT v4.0 Release Binary (LTO=fat, codegen-units=1)
+        run: cargo build --release
+
+      - name: Run All 17 Rust Unit Tests
+        run: cargo test --release
+
+      - name: Measure Cloud Data-Center Network RTT to Binance, Kraken & Base L2
+        run: |
+          echo "=== CLOUD DATA-CENTER DIRECT LATENCY BENCHMARK ==="
+          curl -s -o /dev/null -w "Binance CloudFront Edge RTT : %{time_connect}s TCP | %{time_starttransfer}s TTFB\n" "https://data-api.binance.vision/api/v3/ping"
+          curl -s -o /dev/null -w "Kraken Spot Edge RTT        : %{time_connect}s TCP | %{time_starttransfer}s TTFB\n" "https://api.kraken.com/0/public/Time"
+          curl -s -o /dev/null -w "Base Mainnet L2 RPC RTT     : %{time_connect}s TCP | %{time_starttransfer}s TTFB\n" -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' "https://mainnet.base.org"
+
+      - name: Execute Live Tri-Node Orderbook & On-Chain DEX Scanner
+        run: ./target/release/hydra-node --live-scan --capital ${{ github.event.inputs.capital_eur || '150' }}
+
+      - name: Execute Live €150 Paper-Trading Validator on Cloud Server
+        run: |
+          POLLS="${{ github.event.inputs.polls || '25' }}"
+          CAPITAL="${{ github.event.inputs.capital_eur || '150' }}"
+          ./target/release/hydra-node --paper-48h --capital "$CAPITAL" --polls "$POLLS"
+          cat logs/paper_48h_live_status.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Live €150 Telemetry CSV & Dashboard Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hydra-hft-live-telemetry-150eur
+          path: |
+            logs/paper_48h_150eur.csv
+            logs/paper_48h_live_status.md
+          retention-days: 30
