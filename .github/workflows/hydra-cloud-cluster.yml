@@ -1,6 +1,8 @@
 name: Hydra-HFT v4.0 Forever-Free Cloud Cluster (€150 Live Validator)
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       polls:
