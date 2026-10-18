@@ -29,7 +29,8 @@ fn format_venue_route(graph: &ExchangeGraph, c: &CandidateCycle) -> String {
             VenueId::BinanceSpot | VenueId::BinanceMargin => "BN",
             VenueId::KrakenSpot => "KR",
             VenueId::BaseUniV3 => "UNI3",
-            VenueId::BaseAerodromeVolatile | VenueId::BaseAerodromeStable => "AERO",
+            VenueId::BaseAerodromeVolatile => "AERO",
+            VenueId::BaseAerodromeStable => "PCS3",
             VenueId::BaseCurve => "CRV",
             VenueId::ArbitrumUniV3 => "ARB3",
             _ => "L2",
@@ -414,15 +415,12 @@ fn unix_ns() -> u64 {
 fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) {
     let _ = fs::create_dir_all("logs");
     let base_req_file = "logs/base_rpc_req.json";
-    if !std::path::Path::new(base_req_file).exists() {
-        let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4}]"#;
-        let _ = fs::write(base_req_file, rpc_payload);
-    }
+    let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5}]"#;
+    let _ = fs::write(base_req_file, rpc_payload);
+
     let arb_req_file = "logs/arb_rpc_req.json";
-    if !std::path::Path::new(arb_req_file).exists() {
-        let arb_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xC6962004f452bE9203591991D15f6b388e09E8D0","data":"0x3850c7bd"},"latest"],"id":1}]"#;
-        let _ = fs::write(arb_req_file, arb_payload);
-    }
+    let arb_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xC6962004f452bE9203591991D15f6b388e09E8D0","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6f38e884725a116c9c7fbf208e79fe8828a2595f","data":"0x3850c7bd"},"latest"],"id":2}]"#;
+    let _ = fs::write(arb_req_file, arb_payload);
 
     let (binance_json, kraken_json, base_resp, arb_resp) = thread::scope(|s| {
         let h_bn = s.spawn(|| {
@@ -614,6 +612,27 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
         }
     }
 
+    // Parse id=5 (Base Mainnet PancakeSwap V3 WETH/USDC 1-bps pool 0x72ab...2d38)
+    if let Some(hex) = extract_rpc_result(&resp, 5) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let pcs_weth_usdc_1bps = ratio * ratio * 1e12;
+                if pcs_weth_usdc_1bps > 100.0 && pcs_weth_usdc_1bps < 100_000.0 {
+                    out.push(LiveBookTicker {
+                        venue: VenueId::BaseAerodromeStable,
+                        base: CurrencyId::WETH,
+                        quote: CurrencyId::USDC,
+                        bid_price: pcs_weth_usdc_1bps * 0.99999,
+                        bid_qty: 95.0,
+                        ask_price: pcs_weth_usdc_1bps * 1.00001,
+                        ask_qty: 95.0,
+                    });
+                }
+            }
+        }
+    }
+
     // Parse id=2 (UniV3 EURC/USDC)
     if let Some(hex) = extract_rpc_result(&resp, 2) {
         if hex.len() >= 66 {
@@ -672,6 +691,27 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                         bid_qty: 120.0,
                         ask_price: arb_weth_usdc * 1.00001,
                         ask_qty: 120.0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Parse Arbitrum One Mainnet RPC id=2 (UniV3 WETH/USDC 1-bps pool 0x6f38...595f)
+    if let Some(hex) = extract_rpc_result(arb_resp, 2) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let arb_weth_usdc_1bps = ratio * ratio * 1e12;
+                if arb_weth_usdc_1bps > 100.0 && arb_weth_usdc_1bps < 100_000.0 {
+                    out.push(LiveBookTicker {
+                        venue: VenueId::ArbitrumUniV3,
+                        base: CurrencyId::ETH,
+                        quote: CurrencyId::USDC,
+                        bid_price: arb_weth_usdc_1bps * 0.99999,
+                        bid_qty: 65.0,
+                        ask_price: arb_weth_usdc_1bps * 1.00001,
+                        ask_qty: 65.0,
                     });
                 }
             }
