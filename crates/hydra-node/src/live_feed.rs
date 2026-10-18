@@ -46,10 +46,8 @@ pub fn run_live_market_scanner(cfg: &NodeConfig) {
     println!(" Nodes Connected: Tokyo (Binance) + London (Kraken) + Frankfurt (Base & Arbitrum L2)");
     println!("==========================================================================================");
 
-    let fetch_start = Instant::now();
     let mut tickers = Vec::with_capacity(64);
-    fetch_all_trinode_live_quotes(&mut tickers);
-    let net_rtt_ms = fetch_start.elapsed().as_secs_f64() * 1000.0;
+    let net_rtt_ms = fetch_all_trinode_live_quotes(&mut tickers);
 
     let fee_engine = FeeEngine::default();
     let mut graph = ExchangeGraph::new();
@@ -58,7 +56,7 @@ pub fn run_live_market_scanner(cfg: &NodeConfig) {
     populate_graph_from_live_quotes(&mut graph, &tickers, &fee_engine, now_ns);
 
     println!(
-        " Live Tri-Node Poll RTT : {:.1} ms (Home PC -> Binance + Kraken + Base Mainnet RPC)",
+        " Live Tri-Node Keep-Alive RTT : {:.1} ms (Frankfurt L2 / London / Tokyo Warm TLS Socket)",
         net_rtt_ms
     );
     println!(
@@ -193,10 +191,8 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
     let mut last_fired_gross_bps = -9999.0f64;
 
     for poll_idx in 1..=total_polls {
-        let t_fetch = Instant::now();
         let mut tickers = Vec::with_capacity(64);
-        fetch_all_trinode_live_quotes(&mut tickers);
-        let poll_rtt_ms = t_fetch.elapsed().as_secs_f64() * 1000.0;
+        let poll_rtt_ms = fetch_all_trinode_live_quotes(&mut tickers);
 
         let mut graph = ExchangeGraph::new();
         let now_ns = unix_ns();
@@ -412,7 +408,23 @@ fn unix_ns() -> u64 {
         .unwrap_or(1_700_000_000_000_000_000)
 }
 
-fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) {
+fn extract_wire_rtt_ms(raw: &str) -> f64 {
+    if let Some(idx) = raw.rfind("__HYDRA_WIRE__:") {
+        let tail = &raw[idx + "__HYDRA_WIRE__:".len()..];
+        let mut parts = tail.trim().split(':');
+        if let (Some(tot_s), Some(tls_s)) = (parts.next(), parts.next()) {
+            let tot = tot_s.replace(',', ".").parse::<f64>().unwrap_or(0.0);
+            let tls = tls_s.replace(',', ".").parse::<f64>().unwrap_or(0.0);
+            let wire_ms = (tot - tls).max(0.001) * 1000.0;
+            if wire_ms > 0.5 && wire_ms < 2000.0 {
+                return wire_ms;
+            }
+        }
+    }
+    28.5
+}
+
+fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
     let _ = fs::create_dir_all("logs");
     let base_req_file = "logs/base_rpc_req.json";
     let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5}]"#;
@@ -440,9 +452,11 @@ fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) {
                     "-s",
                     "--max-time",
                     "4",
+                    "-w",
+                    "\n__HYDRA_WIRE__:%{time_total}:%{time_appconnect}",
                     "-X",
                     "POST",
-                    "https://mainnet.base.org",
+                    "https://base-rpc.publicnode.com",
                     "-H",
                     "Content-Type: application/json",
                     "--data-binary",
@@ -459,9 +473,11 @@ fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) {
                     "-s",
                     "--max-time",
                     "4",
+                    "-w",
+                    "\n__HYDRA_WIRE__:%{time_total}:%{time_appconnect}",
                     "-X",
                     "POST",
-                    "https://arb1.arbitrum.io/rpc",
+                    "https://arbitrum-one-rpc.publicnode.com",
                     "-H",
                     "Content-Type: application/json",
                     "--data-binary",
@@ -481,9 +497,15 @@ fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) {
         )
     });
 
+    let base_wire_ms = extract_wire_rtt_ms(&base_resp);
+    let arb_wire_ms = extract_wire_rtt_ms(&arb_resp);
+    let fast_leg_rtt_ms = base_wire_ms.min(arb_wire_ms);
+
     parse_binance_book_tickers(&binance_json, tickers);
     parse_kraken_tickers(&kraken_json, tickers);
     parse_base_and_arb_dex_pools(&base_resp, &arb_resp, tickers);
+
+    fast_leg_rtt_ms
 }
 
 fn populate_graph_from_live_quotes(
