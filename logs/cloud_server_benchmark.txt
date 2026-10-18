@@ -1,7 +1,7 @@
 === CLOUD DATA-CENTER DIRECT LATENCY BENCHMARK ===
-Binance CloudFront Edge RTT : 0.195756s TCP | 0.624919s TTFB
-Kraken Spot Edge RTT        : 0.019063s TCP | 0.150680s TTFB
-Base Mainnet L2 RPC RTT     : 0.051939s TCP | 0.100714s TTFB
+Binance CloudFront Edge RTT : 0.162752s TCP | 0.637743s TTFB
+Kraken Spot Edge RTT        : 0.007390s TCP | 0.285343s TTFB
+Base Mainnet L2 RPC RTT     : 0.009977s TCP | 0.048560s TTFB
 
 ==========================================================================================
  HYDRA-HFT v4.0 — DISTRIBUTED TRI-NODE ARBITRAGE ENGINE
@@ -14,16 +14,16 @@ Base Mainnet L2 RPC RTT     : 0.051939s TCP | 0.100714s TTFB
 ------------------------------------------------------------------------------------------
  TICK | CYCLE PATH (k-HOP)               | NET BPS   | OPT INPUT  | NET PNL    | EQUITY    | HOT LATENCY
 ------------------------------------------------------------------------------------------
- #1   | EUR->USDT->TRY->BRL->EUR         | + 28.80   | €  150.00  | +€  0.432  | € 150.43  |   8.21 us
- #2   | EUR->USDT->BTC->EUR              | + 34.11   | €  150.43  | +€  0.513  | € 150.95  |   3.67 us
- #3   | EUR->USDT->TRY->BRL->EUR         | + 31.32   | €  150.94  | +€  0.473  | € 151.42  |   3.21 us
- #4   | EUR->USDT->BTC->EUR              | + 35.69   | €  151.41  | +€  0.540  | € 151.96  |   3.55 us
- #5   | EUR->USDT->TRY->BRL->EUR         | + 33.84   | €  151.95  | +€  0.514  | € 152.47  |   3.52 us
- #6   | EUR->USDT->BTC->EUR              | + 37.26   | €  152.47  | +€  0.568  | € 153.04  |   2.75 us
- #7   | EUR->USDT->TRY->BRL->EUR         | + 36.36   | €  153.04  | +€  0.556  | € 153.60  |   2.50 us
- #8   | EUR->USDT->BTC->EUR              | + 38.84   | €  153.59  | +€  0.597  | € 154.19  |   2.15 us
- #9   | EUR->USDT->TRY->BRL->EUR         | + 38.88   | €  154.19  | +€  0.600  | € 154.79  |   2.13 us
- #10  | EUR->USDT->BTC->EUR              | + 40.42   | €  154.79  | +€  0.626  | € 155.42  |   2.04 us
+ #1   | EUR->USDT->TRY->BRL->EUR         | + 28.80   | €  150.00  | +€  0.432  | € 150.43  |   8.57 us
+ #2   | EUR->USDT->BTC->EUR              | + 34.11   | €  150.43  | +€  0.513  | € 150.95  |   4.51 us
+ #3   | EUR->USDT->TRY->BRL->EUR         | + 31.32   | €  150.94  | +€  0.473  | € 151.42  |   4.11 us
+ #4   | EUR->USDT->BTC->EUR              | + 35.69   | €  151.41  | +€  0.540  | € 151.96  |   3.64 us
+ #5   | EUR->USDT->TRY->BRL->EUR         | + 33.84   | €  151.95  | +€  0.514  | € 152.47  |   4.00 us
+ #6   | EUR->USDT->BTC->EUR              | + 37.26   | €  152.47  | +€  0.568  | € 153.04  |   3.29 us
+ #7   | EUR->USDT->TRY->BRL->EUR         | + 36.36   | €  153.04  | +€  0.556  | € 153.60  |   2.28 us
+ #8   | EUR->USDT->BTC->EUR              | + 38.84   | €  153.59  | +€  0.597  | € 154.19  |   2.21 us
+ #9   | EUR->USDT->TRY->BRL->EUR         | + 38.88   | €  154.19  | +€  0.600  | € 154.79  |   2.23 us
+ #10  | EUR->USDT->BTC->EUR              | + 40.42   | €  154.79  | +€  0.626  | € 155.42  |   2.21 us
 ==========================================================================================
  SESSION SUMMARY [TOKYO (ap-northeast-1)] | Executed Cycles: 10 | Net Profit: +€5.42 | Final Equity: €155.42
 ==========================================================================================
@@ -36,31 +36,31 @@ Base Mainnet L2 RPC RTT     : 0.051939s TCP | 0.100714s TTFB
  Telemetry CSV Log    : logs/paper_48h_150eur.csv
  Live Status Report   : logs/paper_48h_live_status.md
 ------------------------------------------------------------------------------------------
- [Poll #1 /25] RTT= 36.4ms | Solver=53.65us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.82bps | Net= +0.82bps | FIRE_IOC_ATOMIC (+€0.0103) | Equity: €150.0103 (+0.007%)
- [Poll #2 /25] RTT= 41.7ms | Solver=51.83us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.87bps | Net= +0.87bps | FIRE_IOC_ATOMIC (+€0.0110) | Equity: €150.0213 (+0.014%)
- [Poll #3 /25] RTT= 44.7ms | Solver=51.39us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.87bps | Net= +0.87bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #4 /25] RTT= 48.5ms | Solver=54.55us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.87bps | Net= +0.87bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #5 /25] RTT= 43.5ms | Solver=56.40us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.87bps | Net= +0.87bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #6 /25] RTT= 45.9ms | Solver=49.85us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.87bps | Net= +0.87bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #7 /25] RTT= 42.3ms | Solver=55.67us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.87bps | Net= +0.87bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #8 /25] RTT= 40.6ms | Solver=51.73us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.86bps | Net= +0.86bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #9 /25] RTT= 41.8ms | Solver=51.47us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.86bps | Net= +0.86bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #10/25] RTT= 43.2ms | Solver=49.94us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.55bps | Net= +0.55bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #11/25] RTT= 44.7ms | Solver=49.36us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.55bps | Net= +0.55bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #12/25] RTT= 45.7ms | Solver=52.44us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.55bps | Net= +0.55bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #13/25] RTT= 45.4ms | Solver=53.00us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.55bps | Net= +0.55bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #14/25] RTT= 40.7ms | Solver=51.40us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.55bps | Net= +0.55bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #15/25] RTT= 40.0ms | Solver=51.60us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.55bps | Net= +0.55bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #16/25] RTT= 43.3ms | Solver=54.58us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.50bps | Net= +0.50bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #17/25] RTT= 42.7ms | Solver=52.85us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.68bps | Net= +0.68bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #18/25] RTT= 41.3ms | Solver=52.05us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.68bps | Net= +0.68bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #19/25] RTT= 40.0ms | Solver=55.50us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.68bps | Net= +0.68bps | HOLD_WAIT (+€0.0000) | Equity: €150.0213 (+0.014%)
- [Poll #20/25] RTT= 43.1ms | Solver=53.47us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +3.14bps | Net= +1.14bps | FIRE_IOC_ATOMIC (+€0.0151) | Equity: €150.0363 (+0.024%)
- [Poll #21/25] RTT= 53.5ms | Solver=49.84us | [UNI3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +0.62bps | Net= -1.38bps | HOLD_WAIT (+€0.0000) | Equity: €150.0363 (+0.024%)
- [Poll #22/25] RTT= 49.5ms | Solver=49.90us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +0.46bps | Net= -1.54bps | HOLD_WAIT (+€0.0000) | Equity: €150.0363 (+0.024%)
- [Poll #23/25] RTT= 41.3ms | Solver=53.96us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +0.46bps | Net= -1.54bps | HOLD_WAIT (+€0.0000) | Equity: €150.0363 (+0.024%)
- [Poll #24/25] RTT= 43.4ms | Solver=76.10us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +0.46bps | Net= -1.54bps | HOLD_WAIT (+€0.0000) | Equity: €150.0363 (+0.024%)
- [Poll #25/25] RTT= 41.7ms | Solver=50.91us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +0.46bps | Net= -1.54bps | HOLD_WAIT (+€0.0000) | Equity: €150.0363 (+0.024%)
+ [Poll #1 /25] RTT= 20.1ms | Solver=45.04us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +0.93bps | Net= -1.07bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #2 /25] RTT= 14.2ms | Solver=45.04us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +0.93bps | Net= -1.07bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #3 /25] RTT= 22.1ms | Solver=73.48us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.15bps | Net= -0.85bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #4 /25] RTT= 13.3ms | Solver=48.74us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.15bps | Net= -0.85bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #5 /25] RTT= 15.9ms | Solver=45.28us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.15bps | Net= -0.85bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #6 /25] RTT= 16.5ms | Solver=45.38us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.15bps | Net= -0.85bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #7 /25] RTT= 18.7ms | Solver=91.26us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +0.32bps | Net= -1.68bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #8 /25] RTT= 16.1ms | Solver=45.07us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +0.32bps | Net= -1.68bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #9 /25] RTT= 13.1ms | Solver=61.12us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +0.92bps | Net= -1.08bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #10/25] RTT= 19.9ms | Solver=57.28us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +0.84bps | Net= -1.16bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #11/25] RTT= 19.0ms | Solver=45.14us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.77bps | Net= +0.77bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #12/25] RTT= 19.4ms | Solver=57.14us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.77bps | Net= +0.77bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #13/25] RTT= 19.2ms | Solver=45.55us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.50bps | Net= +0.50bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #14/25] RTT= 18.2ms | Solver=56.39us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.50bps | Net= +0.50bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #15/25] RTT= 18.6ms | Solver=45.67us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.50bps | Net= +0.50bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #16/25] RTT= 15.0ms | Solver=45.50us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +3.76bps | Net= +1.76bps | FIRE_IOC_ATOMIC (+€0.0245) | Equity: €150.0245 (+0.016%)
+ [Poll #17/25] RTT= 16.1ms | Solver=80.63us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +3.89bps | Net= +1.89bps | FIRE_IOC_ATOMIC (+€0.0263) | Equity: €150.0508 (+0.034%)
+ [Poll #18/25] RTT= 17.9ms | Solver=56.40us | [ARB3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +2.94bps | Net= +0.94bps | FIRE_IOC_ATOMIC (+€0.0121) | Equity: €150.0629 (+0.042%)
+ [Poll #19/25] RTT= 23.8ms | Solver=45.21us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.07bps | Net= -0.93bps | HOLD_WAIT (+€0.0000) | Equity: €150.0629 (+0.042%)
+ [Poll #20/25] RTT= 18.9ms | Solver=45.78us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.18bps | Net= -0.82bps | HOLD_WAIT (+€0.0000) | Equity: €150.0629 (+0.042%)
+ [Poll #21/25] RTT= 17.9ms | Solver=53.77us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= +1.42bps | Net= -0.58bps | HOLD_WAIT (+€0.0000) | Equity: €150.0629 (+0.042%)
+ [Poll #22/25] RTT= 17.0ms | Solver=73.42us | [PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC | Gross= +0.99bps | Net= -1.01bps | HOLD_WAIT (+€0.0000) | Equity: €150.0629 (+0.042%)
+ [Poll #23/25] RTT= 17.0ms | Solver=45.14us | [PCS3/UNI3/ARB3] USDC->WETH->ETH->USDC | Gross= -0.07bps | Net= -2.07bps | HOLD_WAIT (+€0.0000) | Equity: €150.0629 (+0.042%)
+ [Poll #24/25] RTT= 20.4ms | Solver=44.64us | [UNI3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= -0.01bps | Net= -2.01bps | HOLD_WAIT (+€0.0000) | Equity: €150.0629 (+0.042%)
+ [Poll #25/25] RTT= 25.7ms | Solver=45.29us | [UNI3/UNI3/PCS3] USDC->ETH->WETH->USDC | Gross= +0.16bps | Net= -1.84bps | HOLD_WAIT (+€0.0000) | Equity: €150.0629 (+0.042%)
 ------------------------------------------------------------------------------------------
- PAPER-TRADING SESSION SUMMARY: Starting Equity €150.00 -> Current Equity €150.0363 (Net PnL: +€0.0363, +0.024%)
+ PAPER-TRADING SESSION SUMMARY: Starting Equity €150.00 -> Current Equity €150.0629 (Net PnL: +€0.0629, +0.042%)
 ==========================================================================================
