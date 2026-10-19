@@ -42,6 +42,7 @@ pub enum FrameVerifyError {
     MacMismatch,
     StaleFrame { age_ns: u64 },
     InvalidSignalType,
+    ReplayedSequence { last_seen: u64, received: u64 },
 }
 
 impl ImpulseFrame {
@@ -78,10 +79,42 @@ impl ImpulseFrame {
         frame
     }
 
-    /// Reinterprets the 64-byte packed struct into a stack byte array with zero heap allocation.
+    /// Serializes the 64-byte packed struct into a stack byte array with zero heap allocation and zero unsafe.
     #[inline(always)]
     pub fn to_bytes(&self) -> [u8; 64] {
-        unsafe { std::mem::transmute::<Self, [u8; 64]>(*self) }
+        let mut bytes = [0u8; 64];
+        bytes[0..4].copy_from_slice(&self.magic.to_le_bytes());
+        bytes[4] = self.version;
+        bytes[5] = self.source_node;
+        bytes[6] = self.signal_type;
+        bytes[7..9].copy_from_slice(&self.asset_pair_id.to_le_bytes());
+        bytes[9] = self.direction as u8;
+        bytes[10..12].copy_from_slice(&self.magnitude_bps.to_le_bytes());
+        bytes[12..20].copy_from_slice(&self.timestamp_ns.to_le_bytes());
+        bytes[20..28].copy_from_slice(&self.seq_no.to_le_bytes());
+        bytes[28..32].copy_from_slice(&self.volume_usd_est.to_le_bytes());
+        bytes[32..48].copy_from_slice(&self.reserved);
+        bytes[48..64].copy_from_slice(&self.blake3_mac);
+        bytes
+    }
+
+    /// Safely decodes a 64-byte raw slice into `ImpulseFrame` with zero unsafe code.
+    #[inline(always)]
+    pub fn from_raw_bytes(raw: &[u8; 64]) -> Self {
+        Self {
+            magic: u32::from_le_bytes(raw[0..4].try_into().unwrap()),
+            version: raw[4],
+            source_node: raw[5],
+            signal_type: raw[6],
+            asset_pair_id: u16::from_le_bytes(raw[7..9].try_into().unwrap()),
+            direction: raw[9] as i8,
+            magnitude_bps: u16::from_le_bytes(raw[10..12].try_into().unwrap()),
+            timestamp_ns: u64::from_le_bytes(raw[12..20].try_into().unwrap()),
+            seq_no: u64::from_le_bytes(raw[20..28].try_into().unwrap()),
+            volume_usd_est: u32::from_le_bytes(raw[28..32].try_into().unwrap()),
+            reserved: raw[32..48].try_into().unwrap(),
+            blake3_mac: raw[48..64].try_into().unwrap(),
+        }
     }
 
     /// Verifies the 64-byte frame's magic header, protocol version, 128-bit keyed BLAKE3 MAC,
@@ -93,7 +126,7 @@ impl ImpulseFrame {
         now_ns: u64,
         max_age_ns: u64,
     ) -> Result<Self, FrameVerifyError> {
-        let frame: Self = unsafe { std::mem::transmute::<[u8; 64], Self>(*raw) };
+        let frame = Self::from_raw_bytes(raw);
 
         if u32::from_le(frame.magic) != HYDRA_MAGIC {
             return Err(FrameVerifyError::InvalidMagic);
@@ -235,6 +268,7 @@ pub struct UdpMeshNode {
     peers: [Option<SocketAddr>; 2],
     mac_key: [u8; 32],
     seq_no: u64,
+    last_seen_seq: [u64; 4],
 }
 
 impl UdpMeshNode {
@@ -252,6 +286,7 @@ impl UdpMeshNode {
             peers,
             mac_key,
             seq_no: 0,
+            last_seen_seq: [0u64; 4],
         })
     }
 
@@ -308,17 +343,30 @@ impl UdpMeshNode {
         )
     }
 
-    /// Polls for an incoming 64-byte `ImpulseFrame` without blocking or allocating.
+    /// Polls for an incoming 64-byte `ImpulseFrame` without blocking or allocating,
+    /// enforcing BLAKE3 MAC verification, freshness window, and monotonic sequence replay protection.
     #[inline(always)]
-    pub fn poll_incoming(&self, now_ns: u64) -> Option<Result<ImpulseFrame, FrameVerifyError>> {
+    pub fn poll_incoming(&mut self, now_ns: u64) -> Option<Result<ImpulseFrame, FrameVerifyError>> {
         let mut buf = [0u8; 64];
         match self.socket.recv_from(&mut buf) {
-            Ok((64, _src)) => Some(ImpulseFrame::verify_from_bytes(
-                &buf,
-                &self.mac_key,
-                now_ns,
-                MAX_IMPULSE_AGE_NS,
-            )),
+            Ok((64, _src)) => {
+                match ImpulseFrame::verify_from_bytes(&buf, &self.mac_key, now_ns, MAX_IMPULSE_AGE_NS) {
+                    Ok(frame) => {
+                        let src_idx = (frame.source_node as usize).min(3);
+                        let seq = u64::from_le(frame.seq_no);
+                        if seq <= self.last_seen_seq[src_idx] {
+                            Some(Err(FrameVerifyError::ReplayedSequence {
+                                last_seen: self.last_seen_seq[src_idx],
+                                received: seq,
+                            }))
+                        } else {
+                            self.last_seen_seq[src_idx] = seq;
+                            Some(Ok(frame))
+                        }
+                    }
+                    Err(e) => Some(Err(e)),
+                }
+            }
             _ => None,
         }
     }

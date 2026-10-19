@@ -75,4 +75,31 @@ mod tests {
         assert_eq!(len, 4 + 160 + 3 * 224);
         assert_eq!(&calldata[0..4], &builder.selector_execute_atomic);
     }
+
+    #[test]
+    fn test_eip1559_rlp_digest_generation() {
+        let builder = AtomicTxBuilder::new();
+        let tpl = Eip1559TxTemplate {
+            chain_id: 8453, // Base Mainnet
+            nonce: 42,
+            max_priority_fee_per_gas_wei: 1_000_000, // 0.001 gwei
+            max_fee_per_gas_wei: 50_000_000,         // 0.05 gwei
+            gas_limit: 450_000,
+            to_executor: [0x55; 20],
+        };
+
+        let dummy_calldata = [0xde, 0xad, 0xbe, 0xef];
+        let digest1 = builder.compute_eip1559_signing_digest(&tpl, &dummy_calldata);
+        let digest2 = builder.compute_eip1559_signing_digest(&tpl, &dummy_calldata);
+
+        // Digest must be non-zero and deterministic
+        assert_ne!(digest1, [0u8; 32]);
+        assert_eq!(digest1, digest2);
+
+        // Changing nonce must change digest
+        let mut tpl_modified = tpl;
+        tpl_modified.nonce = 43;
+        let digest_mod = builder.compute_eip1559_signing_digest(&tpl_modified, &dummy_calldata);
+        assert_ne!(digest1, digest_mod);
+    }
 }

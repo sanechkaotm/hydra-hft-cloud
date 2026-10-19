@@ -125,36 +125,118 @@ impl AtomicTxBuilder {
         224
     }
 
-    /// Computes the EIP-1559 transaction digest (`keccak256(0x02 || rlp([chain_id, nonce, ...]))`)
-    /// on the stack for zero-allocation hot-path signing.
+    /// Computes the canonical EIP-1559 transaction digest:
+    /// `keccak256(0x02 || rlp([chain_id, nonce, max_priority_fee_per_gas, max_fee_per_gas, gas_limit, to, value, data, access_list]))`
+    /// on the stack with zero heap allocations.
     #[inline(always)]
     pub fn compute_eip1559_signing_digest(
         &self,
         tpl: &Eip1559TxTemplate,
         calldata: &[u8],
     ) -> [u8; 32] {
-        let mut payload = [0u8; 1664];
-        payload[0] = 0x02; // EIP-2718 Type 2 (EIP-1559)
-        let mut pos = 1usize;
+        // Buffer for concatenated RLP list items
+        let mut items = [0u8; 1792];
+        let mut pos = 0usize;
 
-        payload[pos..pos + 8].copy_from_slice(&tpl.chain_id.to_be_bytes());
-        pos += 8;
-        payload[pos..pos + 8].copy_from_slice(&tpl.nonce.to_be_bytes());
-        pos += 8;
-        payload[pos..pos + 16].copy_from_slice(&tpl.max_priority_fee_per_gas_wei.to_be_bytes());
-        pos += 16;
-        payload[pos..pos + 16].copy_from_slice(&tpl.max_fee_per_gas_wei.to_be_bytes());
-        pos += 16;
-        payload[pos..pos + 8].copy_from_slice(&tpl.gas_limit.to_be_bytes());
-        pos += 8;
-        payload[pos..pos + 20].copy_from_slice(&tpl.to_executor);
-        pos += 20;
+        // 1. chain_id
+        pos += rlp_encode_uint(tpl.chain_id as u128, &mut items[pos..]);
+        // 2. nonce
+        pos += rlp_encode_uint(tpl.nonce as u128, &mut items[pos..]);
+        // 3. max_priority_fee_per_gas
+        pos += rlp_encode_uint(tpl.max_priority_fee_per_gas_wei, &mut items[pos..]);
+        // 4. max_fee_per_gas
+        pos += rlp_encode_uint(tpl.max_fee_per_gas_wei, &mut items[pos..]);
+        // 5. gas_limit
+        pos += rlp_encode_uint(tpl.gas_limit as u128, &mut items[pos..]);
+        // 6. to address
+        pos += rlp_encode_address(&tpl.to_executor, &mut items[pos..]);
+        // 7. value (0 for contract interaction)
+        pos += rlp_encode_uint(0, &mut items[pos..]);
+        // 8. calldata
+        pos += rlp_encode_bytes(calldata, &mut items[pos..]);
+        // 9. access_list (empty list = 0xc0)
+        items[pos] = 0xc0;
+        pos += 1;
 
-        let cd_len = calldata.len().min(payload.len() - pos);
-        payload[pos..pos + cd_len].copy_from_slice(&calldata[..cd_len]);
-        pos += cd_len;
+        let payload_len = pos;
 
-        keccak256(&payload[..pos])
+        // Prepend EIP-2718 Type byte (0x02) and RLP list header
+        let mut envelope = [0u8; 1856];
+        envelope[0] = 0x02; // EIP-2718 Type 2
+        let mut env_pos = 1usize;
+
+        if payload_len <= 55 {
+            envelope[env_pos] = 0xc0 + payload_len as u8;
+            env_pos += 1;
+        } else {
+            let len_be = (payload_len as u32).to_be_bytes();
+            let leading = len_be.iter().take_while(|&&b| b == 0).count();
+            let len_bytes = &len_be[leading..];
+            envelope[env_pos] = 0xf7 + len_bytes.len() as u8;
+            env_pos += 1;
+            envelope[env_pos..env_pos + len_bytes.len()].copy_from_slice(len_bytes);
+            env_pos += len_bytes.len();
+        }
+
+        envelope[env_pos..env_pos + payload_len].copy_from_slice(&items[..payload_len]);
+        env_pos += payload_len;
+
+        keccak256(&envelope[..env_pos])
+    }
+}
+
+/// Encodes an unsigned integer into RLP format without heap allocation.
+#[inline(always)]
+fn rlp_encode_uint(val: u128, buf: &mut [u8]) -> usize {
+    if val == 0 {
+        buf[0] = 0x80;
+        return 1;
+    }
+    let be = val.to_be_bytes();
+    let leading = be.iter().take_while(|&&b| b == 0).count();
+    let sig = &be[leading..];
+    if sig.len() == 1 && sig[0] < 0x80 {
+        buf[0] = sig[0];
+        1
+    } else {
+        let len = sig.len();
+        buf[0] = 0x80 + len as u8;
+        buf[1..1 + len].copy_from_slice(sig);
+        1 + len
+    }
+}
+
+/// Encodes a 20-byte address into RLP format (`0x94` followed by 20 bytes).
+#[inline(always)]
+fn rlp_encode_address(addr: &[u8; 20], buf: &mut [u8]) -> usize {
+    buf[0] = 0x94;
+    buf[1..21].copy_from_slice(addr);
+    21
+}
+
+/// Encodes arbitrary byte string into RLP format.
+#[inline(always)]
+fn rlp_encode_bytes(bytes: &[u8], buf: &mut [u8]) -> usize {
+    let len = bytes.len();
+    if len == 0 {
+        buf[0] = 0x80;
+        1
+    } else if len == 1 && bytes[0] < 0x80 {
+        buf[0] = bytes[0];
+        1
+    } else if len <= 55 {
+        buf[0] = 0x80 + len as u8;
+        buf[1..1 + len].copy_from_slice(bytes);
+        1 + len
+    } else {
+        let len_be = (len as u32).to_be_bytes();
+        let leading = len_be.iter().take_while(|&&b| b == 0).count();
+        let len_bytes = &len_be[leading..];
+        let num_len = len_bytes.len();
+        buf[0] = 0xb7 + num_len as u8;
+        buf[1..1 + num_len].copy_from_slice(len_bytes);
+        buf[1 + num_len..1 + num_len + len].copy_from_slice(bytes);
+        1 + num_len + len
     }
 }
 

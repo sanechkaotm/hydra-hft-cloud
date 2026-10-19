@@ -71,7 +71,7 @@ mod tests {
         let key = *b"HYDRA_HFT_V4_MESH_MAC_SECRET_KEY";
         let bind_any: std::net::SocketAddr = "127.0.0.1:0".parse().unwrap();
 
-        let london = UdpMeshNode::bind(bind_any, NodeRole::London, [None, None], key).unwrap();
+        let mut london = UdpMeshNode::bind(bind_any, NodeRole::London, [None, None], key).unwrap();
         let london_addr = london.local_addr().unwrap();
 
         let mut tokyo = UdpMeshNode::bind(
@@ -100,6 +100,23 @@ mod tests {
         let mag = u16::from_le(rx.magnitude_bps);
         assert_eq!(mag, 25);
         assert_eq!(rx.signal_type, SIGNAL_CRYPTO_SWEEP);
+
+        // Replaying the exact same packet must be rejected as ReplayedSequence
+        let raw_replayed = rx.to_bytes();
+        let socket = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+        socket.send_to(&raw_replayed, london_addr).unwrap();
+
+        let replay_err = london
+            .poll_incoming(ts_ns + 60_000_000)
+            .expect("Expected datagram")
+            .unwrap_err();
+        assert_eq!(
+            replay_err,
+            FrameVerifyError::ReplayedSequence {
+                last_seen: 1,
+                received: 1
+            }
+        );
     }
 
     #[test]

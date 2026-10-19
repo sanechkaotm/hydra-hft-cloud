@@ -12,8 +12,8 @@ pub enum ExecutionMode {
 impl ExecutionMode {
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::DryRun => "DRY-RUN (Paper-Trading Simulator)",
-            Self::Live => "LIVE (Production Atomic/IOC Execution)",
+            Self::DryRun => "DRY-RUN (Simulated Paper Execution)",
+            Self::Live => "LIVE-DISABLED (Safe Dry-Run: Live order execution intentionally disabled)",
         }
     }
 }
@@ -59,11 +59,14 @@ impl Default for NodeConfig {
 }
 
 impl NodeConfig {
-    /// Loads configuration from `.env` (if present), environment variables, and CLI flags:
-    /// `--role tokyo|london|frankfurt`, `--dry-run`, `--live`, `--capital <EUR>`, `--ticks <N>`, `--benchmark`, `--live-market`, `--paper-48h`, `--polls <N>`.
+    /// Loads configuration safely:
+    /// 1. Defaults
+    /// 2. Key-value pairs from `.env` (without mutating process environment)
+    /// 3. Overriding process environment variables
+    /// 4. Overriding CLI flags
     pub fn from_env_and_args() -> Self {
         let mut cfg = Self::default();
-        Self::load_dotenv_into_process();
+        cfg.load_dotenv_safe();
 
         if let Ok(role_str) = env::var("HYDRA_NODE_ROLE") {
             cfg.role = Self::parse_role(&role_str);
@@ -90,48 +93,54 @@ impl NodeConfig {
         }
 
         let args: Vec<String> = env::args().skip(1).collect();
+        cfg.apply_args(&args);
+        cfg
+    }
+
+    pub fn apply_args(&mut self, args: &[String]) {
         let mut i = 0usize;
         while i < args.len() {
             match args[i].as_str() {
                 "--role" if i + 1 < args.len() => {
-                    cfg.role = Self::parse_role(&args[i + 1]);
+                    self.role = Self::parse_role(&args[i + 1]);
                     i += 2;
                 }
                 "--dry-run" => {
-                    cfg.mode = ExecutionMode::DryRun;
+                    self.mode = ExecutionMode::DryRun;
                     i += 1;
                 }
                 "--live" => {
-                    cfg.mode = ExecutionMode::Live;
+                    // Safe-by-default isolation: Live broadcasting remains disabled
+                    self.mode = ExecutionMode::Live;
                     i += 1;
                 }
                 "--benchmark" => {
-                    cfg.benchmark = true;
+                    self.benchmark = true;
                     i += 1;
                 }
                 "--live-market" => {
-                    cfg.live_market = true;
+                    self.live_market = true;
                     i += 1;
                 }
                 "--paper-48h" => {
-                    cfg.paper_48h = true;
+                    self.paper_48h = true;
                     i += 1;
                 }
                 "--polls" if i + 1 < args.len() => {
                     if let Ok(p) = args[i + 1].parse::<usize>() {
-                        cfg.live_polls = p;
+                        self.live_polls = p;
                     }
                     i += 2;
                 }
                 "--capital" if i + 1 < args.len() => {
                     if let Ok(c) = args[i + 1].parse::<f64>() {
-                        cfg.initial_capital_eur = c;
+                        self.initial_capital_eur = c;
                     }
                     i += 2;
                 }
                 "--ticks" if i + 1 < args.len() => {
                     if let Ok(t) = args[i + 1].parse::<usize>() {
-                        cfg.max_ticks = t;
+                        self.max_ticks = t;
                     }
                     i += 2;
                 }
@@ -140,8 +149,6 @@ impl NodeConfig {
                 }
             }
         }
-
-        cfg
     }
 
     pub fn parse_role(s: &str) -> NodeRole {
@@ -153,7 +160,34 @@ impl NodeConfig {
         }
     }
 
-    fn load_dotenv_into_process() {
+    fn apply_key_value(&mut self, key: &str, val: &str) {
+        match key {
+            "HYDRA_NODE_ROLE" => self.role = Self::parse_role(val),
+            "HYDRA_EXECUTION_MODE" => {
+                if val.eq_ignore_ascii_case("live") {
+                    self.mode = ExecutionMode::Live;
+                }
+            }
+            "HYDRA_INITIAL_CAPITAL_EUR" => {
+                if let Ok(val) = val.parse::<f64>() {
+                    self.initial_capital_eur = val;
+                }
+            }
+            "HYDRA_MIN_NET_PROFIT_BPS" => {
+                if let Ok(val) = val.parse::<f64>() {
+                    self.min_net_profit_bps = val;
+                }
+            }
+            "HYDRA_MIN_DEX_PROFIT_EUR" => {
+                if let Ok(val) = val.parse::<f64>() {
+                    self.min_dex_profit_eur = val;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn load_dotenv_safe(&mut self) {
         let Ok(contents) = fs::read_to_string(".env") else {
             return;
         };
@@ -165,12 +199,33 @@ impl NodeConfig {
             if let Some((k, v)) = trimmed.split_once('=') {
                 let key = k.trim();
                 let val = v.split('#').next().unwrap_or("").trim();
-                if env::var_os(key).is_none() {
-                    unsafe {
-                        env::set_var(key, val);
-                    }
-                }
+                self.apply_key_value(key, val);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_node_config_default_and_cli_precedence() {
+        let mut cfg = NodeConfig::default();
+        assert_eq!(cfg.mode, ExecutionMode::DryRun);
+        assert_eq!(cfg.role, NodeRole::Tokyo);
+
+        let args = vec![
+            "--role".to_string(),
+            "frankfurt".to_string(),
+            "--capital".to_string(),
+            "500.0".to_string(),
+            "--live".to_string(),
+        ];
+        cfg.apply_args(&args);
+        assert_eq!(cfg.role, NodeRole::Frankfurt);
+        assert_eq!(cfg.initial_capital_eur, 500.0);
+        assert_eq!(cfg.mode, ExecutionMode::Live);
+        assert!(cfg.mode.as_str().contains("Safe Dry-Run"));
     }
 }

@@ -612,6 +612,58 @@ contract HydraAtomicExecutorTest {
         require(netProfit == 8_250_000, "Base native Aerodrome + SwapRouter02 net profit mismatch");
     }
 
+    /// @notice Test 8: Reverts if Aave flashloan callback delivers asset mismatched with baseToken
+    function test_RevertWhen_FlashLoanAssetMismatch_Aave() public {
+        HydraAtomicExecutor.SwapStep[] memory steps = new HydraAtomicExecutor.SwapStep[](1);
+        steps[0] = HydraAtomicExecutor.SwapStep({
+            dexType: hydra.DEX_CURVE_STABLE(),
+            poolOrRouter: address(curvePool),
+            tokenIn: address(eurc),
+            tokenOut: address(usdc),
+            feeTier: 0,
+            curveIndexIn: 0,
+            curveIndexOut: 1
+        });
+
+        // Flash loan parameter has EURC as baseToken, but attacker/mock delivers USDC as asset
+        HydraAtomicExecutor.FlashCallbackData memory data = HydraAtomicExecutor.FlashCallbackData({
+            baseToken: address(eurc),
+            preLoanBalance: 1_000_000_000,
+            internalContribution: 0,
+            minNetProfit: 1_000_000,
+            steps: steps
+        });
+
+        vm.startPrank(address(aavePool));
+        vm.expectRevert();
+        hydra.executeOperation(
+            address(usdc), // mismatched asset
+            10_000_000_000,
+            5_000_000,
+            address(hydra),
+            abi.encode(data)
+        );
+        vm.stopPrank();
+    }
+
+    /// @notice Test 9: Reverts if step contains address(0) router
+    function test_RevertWhen_StepRouterIsZeroAddress() public {
+        HydraAtomicExecutor.SwapStep[] memory steps = new HydraAtomicExecutor.SwapStep[](1);
+        steps[0] = HydraAtomicExecutor.SwapStep({
+            dexType: hydra.DEX_CURVE_STABLE(),
+            poolOrRouter: address(0), // invalid zero address
+            tokenIn: address(eurc),
+            tokenOut: address(usdc),
+            feeTier: 0,
+            curveIndexIn: 0,
+            curveIndexOut: 1
+        });
+
+        vm.prank(HOT_WALLET);
+        vm.expectRevert();
+        hydra.executeAtomicArbitrage(address(eurc), 1_000_000, 100_000, steps);
+    }
+
     receive() external payable {}
 }
 

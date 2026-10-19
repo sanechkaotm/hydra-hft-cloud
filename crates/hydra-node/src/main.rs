@@ -72,6 +72,10 @@ fn main() {
         " Cycle Profit Hurdle  : {:.2} bps net | Min DEX Net Profit: €{:.2}",
         cfg.min_net_profit_bps, cfg.min_dex_profit_eur
     );
+    if cfg.mode == config::ExecutionMode::Live {
+        println!(" [SAFETY ISOLATION] Live transaction broadcasting is disabled by default.");
+        println!("                    Running in safe-by-default simulated mode.");
+    }
     println!("------------------------------------------------------------------------------------------");
 
     let mut mesh_node = UdpMeshNode::bind(
@@ -349,7 +353,7 @@ fn main() {
 /// Runs a 10,000-tick Institutional Microstructure & Risk Verification Benchmark (`--benchmark`).
 fn run_institutional_stress_benchmark(cfg: &NodeConfig) {
     println!("==========================================================================================");
-    println!(" HYDRA-HFT v4.0 — 10,000-TICK MICROSTRUCTURE & RISK STRESS BENCHMARK");
+    println!(" HYDRA-HFT v4.0 — 10,000-TICK IN-MEMORY GRAPH & RISK STRESS BENCHMARK (SYNTHETIC HOT PATH)");
     println!("==========================================================================================");
 
     let fee_engine = FeeEngine::default();

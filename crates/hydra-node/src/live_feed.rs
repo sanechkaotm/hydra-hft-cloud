@@ -427,12 +427,16 @@ fn extract_wire_rtt_ms(raw: &str) -> f64 {
 fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
     let _ = fs::create_dir_all("logs");
     let base_req_file = "logs/base_rpc_req.json";
-    let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5}]"#;
-    let _ = fs::write(base_req_file, rpc_payload);
+    if !std::path::Path::new(base_req_file).exists() {
+        let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5}]"#;
+        let _ = fs::write(base_req_file, rpc_payload);
+    }
 
     let arb_req_file = "logs/arb_rpc_req.json";
-    let arb_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xC6962004f452bE9203591991D15f6b388e09E8D0","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6f38e884725a116c9c7fbf208e79fe8828a2595f","data":"0x3850c7bd"},"latest"],"id":2}]"#;
-    let _ = fs::write(arb_req_file, arb_payload);
+    if !std::path::Path::new(arb_req_file).exists() {
+        let arb_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xC6962004f452bE9203591991D15f6b388e09E8D0","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6f38e884725a116c9c7fbf208e79fe8828a2595f","data":"0x3850c7bd"},"latest"],"id":2}]"#;
+        let _ = fs::write(arb_req_file, arb_payload);
+    }
 
     let (binance_json, kraken_json, base_resp, arb_resp) = thread::scope(|s| {
         let h_bn = s.spawn(|| {

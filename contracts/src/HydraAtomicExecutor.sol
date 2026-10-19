@@ -26,6 +26,9 @@ contract HydraAtomicExecutor is IFlashLoanSimpleReceiver, IBalancerFlashLoanReci
     error UnauthorizedCaller(address caller);
     error UnauthorizedFlashLoanCallback(address caller);
     error InvalidFlashLoanInitiator(address initiator);
+    error AssetMismatch(address expected, address received);
+    error InvalidArrayLength();
+    error ZeroAddress();
     error InsufficientAtomicProfit(uint256 balanceBefore, uint256 balanceAfter, uint256 minNetProfit);
     error UnsupportedDexType(uint8 dexType);
     error EmptySwapPath();
@@ -260,6 +263,9 @@ contract HydraAtomicExecutor is IFlashLoanSimpleReceiver, IBalancerFlashLoanReci
         }
 
         FlashCallbackData memory data = abi.decode(params, (FlashCallbackData));
+        if (asset != data.baseToken) {
+            revert AssetMismatch(data.baseToken, asset);
+        }
         uint256 currentAmount = amount + data.internalContribution;
 
         for (uint256 i = 0; i < data.steps.length; ) {
@@ -270,7 +276,11 @@ contract HydraAtomicExecutor is IFlashLoanSimpleReceiver, IBalancerFlashLoanReci
         uint256 amountOwed = amount + premium;
         _safeApprove(asset, aaveV3Pool, amountOwed);
 
-        uint256 projectedFinalBalance = IERC20(asset).balanceOf(address(this)) - amountOwed;
+        uint256 balanceCurrent = IERC20(asset).balanceOf(address(this));
+        if (balanceCurrent < amountOwed) {
+            revert InsufficientAtomicProfit(data.preLoanBalance, balanceCurrent, data.minNetProfit);
+        }
+        uint256 projectedFinalBalance = balanceCurrent - amountOwed;
         if (projectedFinalBalance < data.preLoanBalance + data.minNetProfit) {
             revert InsufficientAtomicProfit(data.preLoanBalance, projectedFinalBalance, data.minNetProfit);
         }
@@ -290,9 +300,15 @@ contract HydraAtomicExecutor is IFlashLoanSimpleReceiver, IBalancerFlashLoanReci
         if (!_inFlashLoan || msg.sender != balancerVault) {
             revert UnauthorizedFlashLoanCallback(msg.sender);
         }
+        if (tokens.length == 0 || amounts.length != tokens.length || feeAmounts.length != tokens.length) {
+            revert InvalidArrayLength();
+        }
 
         FlashCallbackData memory data = abi.decode(userData, (FlashCallbackData));
         address asset = tokens[0];
+        if (asset != data.baseToken) {
+            revert AssetMismatch(data.baseToken, asset);
+        }
         uint256 loanAmount = amounts[0];
         uint256 feeAmount = feeAmounts[0];
 
@@ -321,6 +337,9 @@ contract HydraAtomicExecutor is IFlashLoanSimpleReceiver, IBalancerFlashLoanReci
         SwapStep memory step,
         uint256 amountIn
     ) internal returns (uint256 amountOut) {
+        if (step.poolOrRouter == address(0) || step.tokenIn == address(0) || step.tokenOut == address(0)) {
+            revert ZeroAddress();
+        }
         _safeApprove(step.tokenIn, step.poolOrRouter, amountIn);
 
         uint256 outBefore = IERC20(step.tokenOut).balanceOf(address(this));
