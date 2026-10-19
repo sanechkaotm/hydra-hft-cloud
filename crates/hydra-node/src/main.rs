@@ -1,5 +1,6 @@
 mod config;
 mod live_feed;
+mod preflight_check;
 
 use config::NodeConfig;
 use hydra_cex::{
@@ -41,6 +42,10 @@ fn monotonic_unix_ns() -> u64 {
 
 fn main() {
     let cfg = NodeConfig::from_env_and_args();
+    if cfg.preflight_check {
+        preflight_check::run_preflight_diagnostics(&cfg);
+        return;
+    }
     if cfg.benchmark {
         run_institutional_stress_benchmark(&cfg);
         return;

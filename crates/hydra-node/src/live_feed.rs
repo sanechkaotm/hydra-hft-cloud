@@ -204,7 +204,11 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
         let solver_us = t_solve.elapsed().as_nanos() as f64 / 1000.0;
 
         if !candidates.is_empty() {
-            let best = &candidates[0];
+            // Only cycles whose every leg lives in ONE execution domain (one chain or one exchange)
+            // can be executed atomically. Cross-chain / CEX+DEX mixes are reported but never booked.
+            let atomic_idx = candidates.iter().position(|c| is_single_domain_cycle(&graph, c));
+            let executable = atomic_idx.is_some();
+            let best = &candidates[atomic_idx.unwrap_or(0)];
             let hops = best.hop_count as usize;
             let mut gross_mult = 1.0f64;
             let mut uses_l2_dex = false;
@@ -231,7 +235,7 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
             }
 
             let (action_str, notional_eur, net_profit_eur) =
-                if best.net_profit_bps >= cfg.min_net_profit_bps && is_new_price_wave {
+                if executable && best.net_profit_bps >= cfg.min_net_profit_bps && is_new_price_wave {
                     last_fired_gross_bps = gross_bps;
                     executed_cycles_count += 1;
                     let raw_notional =
@@ -280,7 +284,8 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                     ("FIRE_IOC_ATOMIC", quantized_notional, net_eur)
                 } else {
                     hold_cycles_count += 1;
-                    ("HOLD_WAIT", 0.0, 0.0)
+                    let label = if executable { "HOLD_WAIT" } else { "HOLD_NON_ATOMIC" };
+                    (label, 0.0, 0.0)
                 };
 
             let current_equity_eur =
@@ -406,6 +411,80 @@ fn unix_ns() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos() as u64)
         .unwrap_or(1_700_000_000_000_000_000)
+}
+
+/// Where a leg physically settles. Legs in different domains cannot be combined in one atomic action:
+/// Base and Arbitrum are separate chains, and CEX balances are separate from on-chain balances.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ExecDomain {
+    Binance,
+    Kraken,
+    BaseChain,
+    ArbitrumChain,
+}
+
+pub(crate) const fn execution_domain(v: VenueId) -> ExecDomain {
+    match v {
+        VenueId::BinanceSpot | VenueId::BinanceMargin => ExecDomain::Binance,
+        VenueId::KrakenSpot => ExecDomain::Kraken,
+        VenueId::BaseUniV3
+        | VenueId::BaseAerodromeVolatile
+        | VenueId::BaseAerodromeStable
+        | VenueId::BaseCurve => ExecDomain::BaseChain,
+        VenueId::ArbitrumUniV3 | VenueId::ArbitrumCurve | VenueId::ArbitrumCamelotV2 => {
+            ExecDomain::ArbitrumChain
+        }
+    }
+}
+
+/// True only if every leg of the cycle settles in the same execution domain.
+pub(crate) fn venues_single_domain(venues: &[VenueId]) -> bool {
+    match venues.first() {
+        None => false,
+        Some(&first) => {
+            let d = execution_domain(first);
+            venues.iter().all(|&v| execution_domain(v) == d)
+        }
+    }
+}
+
+fn is_single_domain_cycle(graph: &ExchangeGraph, c: &CandidateCycle) -> bool {
+    let hops = (c.hop_count as usize).min(4);
+    let mut venues = [VenueId::BinanceSpot; 4];
+    for h in 0..hops {
+        venues[h] = graph.edge(c.edge_ids[h]).venue;
+    }
+    venues_single_domain(&venues[..hops])
+}
+
+#[cfg(test)]
+mod atomicity_tests {
+    use super::*;
+
+    #[test]
+    fn cross_chain_and_cex_dex_cycles_are_not_atomic() {
+        // The route that produced ~95% of the old paper PnL: Arbitrum pool + Base pools.
+        assert!(!venues_single_domain(&[
+            VenueId::ArbitrumUniV3,
+            VenueId::BaseUniV3,
+            VenueId::BaseAerodromeStable
+        ]));
+        // Binance + Base DEX mix.
+        assert!(!venues_single_domain(&[
+            VenueId::BaseAerodromeStable,
+            VenueId::BaseUniV3,
+            VenueId::BinanceSpot
+        ]));
+        // Pure Base cycle is atomic-capable.
+        assert!(venues_single_domain(&[
+            VenueId::BaseUniV3,
+            VenueId::BaseUniV3,
+            VenueId::BaseAerodromeVolatile
+        ]));
+        // Pure Binance cycle is single-domain.
+        assert!(venues_single_domain(&[VenueId::BinanceSpot, VenueId::BinanceSpot]));
+        assert!(!venues_single_domain(&[]));
+    }
 }
 
 fn extract_wire_rtt_ms(raw: &str) -> f64 {

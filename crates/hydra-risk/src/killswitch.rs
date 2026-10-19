@@ -55,12 +55,22 @@ pub struct KillSwitch {
     pub broken_leg_window_start_ns: AtomicU64,
     /// Cumulative EUR spent on reverted L2 DEX transactions today (scaled by `1e6` micro-EUR).
     pub daily_revert_gas_micro_eur: AtomicU64,
+    /// Maximum allowed daily revert gas expenditure in micro-EUR.
+    pub max_daily_revert_gas_micro_eur: AtomicU64,
     /// Per-venue consecutive healthy heartbeats counter (`100` required to clear venue block).
     pub venue_healthy_heartbeats: [AtomicU64; 10],
 }
 
 impl KillSwitch {
     pub fn new(initial_equity_eur: f64) -> Self {
+        let initial_micro = (initial_equity_eur.max(0.0) * 1_000_000.0).round() as u64;
+        let scaled_gas = ((initial_micro as u128 * 2 / 100) as u64)
+            .max(300_000)
+            .min(MAX_DAILY_REVERT_GAS_MICRO_EUR);
+        Self::with_custom_gas_limit(initial_equity_eur, scaled_gas)
+    }
+
+    pub fn with_custom_gas_limit(initial_equity_eur: f64, max_gas_micro_eur: u64) -> Self {
         let initial_micro = (initial_equity_eur.max(0.0) * 1_000_000.0).round() as u64;
         Self {
             global_halt: AtomicBool::new(false),
@@ -71,6 +81,7 @@ impl KillSwitch {
             broken_cex_legs: AtomicU64::new(0),
             broken_leg_window_start_ns: AtomicU64::new(0),
             daily_revert_gas_micro_eur: AtomicU64::new(0),
+            max_daily_revert_gas_micro_eur: AtomicU64::new(max_gas_micro_eur),
             venue_healthy_heartbeats: std::array::from_fn(|_| {
                 AtomicU64::new(REQUIRED_HEALTHY_HEARTBEATS)
             }),
@@ -149,7 +160,8 @@ impl KillSwitch {
             return Err(HaltReason::MaxConsecutiveDexReverts(rev_count));
         }
 
-        if total_gas_micro > MAX_DAILY_REVERT_GAS_MICRO_EUR {
+        let gas_limit = self.max_daily_revert_gas_micro_eur.load(Ordering::Acquire);
+        if total_gas_micro > gas_limit {
             self.trigger_global_halt();
             return Err(HaltReason::DailyRevertGasDrainExceeded {
                 spent_micro_eur: total_gas_micro,

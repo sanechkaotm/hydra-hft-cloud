@@ -35,6 +35,12 @@ pub struct NodeConfig {
     pub live_market: bool,
     pub paper_48h: bool,
     pub live_polls: usize,
+    pub preflight_check: bool,
+    pub max_gas_gwei: f64,
+    pub base_rpc_url: String,
+    pub wallet_address: Option<String>,
+    pub executor_contract: Option<String>,
+    pub has_private_key: bool,
 }
 
 impl Default for NodeConfig {
@@ -54,6 +60,12 @@ impl Default for NodeConfig {
             live_market: false,
             paper_48h: false,
             live_polls: 3,
+            preflight_check: false,
+            max_gas_gwei: 0.15,
+            base_rpc_url: "https://base-rpc.publicnode.com".to_string(),
+            wallet_address: None,
+            executor_contract: None,
+            has_private_key: false,
         }
     }
 }
@@ -91,6 +103,29 @@ impl NodeConfig {
                 cfg.min_dex_profit_eur = val;
             }
         }
+        if let Ok(rpc) = env::var("HYDRA_BASE_RPC_URL") {
+            if !rpc.trim().is_empty() {
+                cfg.base_rpc_url = rpc;
+            }
+        }
+        if let Ok(gas) = env::var("HYDRA_MAX_GAS_GWEI") {
+            if let Ok(val) = gas.parse::<f64>() {
+                cfg.max_gas_gwei = val;
+            }
+        }
+        if let Ok(addr) = env::var("HYDRA_WALLET_ADDRESS") {
+            if !addr.trim().is_empty() {
+                cfg.wallet_address = Some(addr);
+            }
+        }
+        if let Ok(exec) = env::var("HYDRA_EXECUTOR_CONTRACT") {
+            if !exec.trim().is_empty() {
+                cfg.executor_contract = Some(exec);
+            }
+        }
+        if let Ok(pk) = env::var("HYDRA_WALLET_PRIVATE_KEY") {
+            cfg.has_private_key = !pk.trim().is_empty();
+        }
 
         let args: Vec<String> = env::args().skip(1).collect();
         cfg.apply_args(&args);
@@ -125,6 +160,28 @@ impl NodeConfig {
                 "--paper-48h" => {
                     self.paper_48h = true;
                     i += 1;
+                }
+                "--preflight-check" => {
+                    self.preflight_check = true;
+                    i += 1;
+                }
+                "--max-gas-gwei" if i + 1 < args.len() => {
+                    if let Ok(g) = args[i + 1].parse::<f64>() {
+                        self.max_gas_gwei = g;
+                    }
+                    i += 2;
+                }
+                "--rpc" if i + 1 < args.len() => {
+                    self.base_rpc_url = args[i + 1].clone();
+                    i += 2;
+                }
+                "--wallet" if i + 1 < args.len() => {
+                    self.wallet_address = Some(args[i + 1].clone());
+                    i += 2;
+                }
+                "--executor" if i + 1 < args.len() => {
+                    self.executor_contract = Some(args[i + 1].clone());
+                    i += 2;
                 }
                 "--polls" if i + 1 < args.len() => {
                     if let Ok(p) = args[i + 1].parse::<usize>() {
@@ -182,6 +239,29 @@ impl NodeConfig {
                 if let Ok(val) = val.parse::<f64>() {
                     self.min_dex_profit_eur = val;
                 }
+            }
+            "HYDRA_BASE_RPC_URL" => {
+                if !val.trim().is_empty() {
+                    self.base_rpc_url = val.to_string();
+                }
+            }
+            "HYDRA_MAX_GAS_GWEI" => {
+                if let Ok(val) = val.parse::<f64>() {
+                    self.max_gas_gwei = val;
+                }
+            }
+            "HYDRA_WALLET_ADDRESS" => {
+                if !val.trim().is_empty() {
+                    self.wallet_address = Some(val.to_string());
+                }
+            }
+            "HYDRA_EXECUTOR_CONTRACT" => {
+                if !val.trim().is_empty() {
+                    self.executor_contract = Some(val.to_string());
+                }
+            }
+            "HYDRA_WALLET_PRIVATE_KEY" => {
+                self.has_private_key = !val.trim().is_empty();
             }
             _ => {}
         }

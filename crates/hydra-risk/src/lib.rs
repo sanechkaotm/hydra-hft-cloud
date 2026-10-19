@@ -63,6 +63,18 @@ mod tests {
             }
         );
         assert!(ks_gas.is_halted());
+
+        // Test micro-capital scaled gas breaker for €20 trial run (cap = €0.40)
+        let ks_micro = KillSwitch::new(20.0);
+        assert!(ks_micro.record_dex_revert(0.25).is_ok());
+        let micro_err = ks_micro.record_dex_revert(0.20).unwrap_err(); // Total €0.45 > €0.40
+        assert_eq!(
+            micro_err,
+            HaltReason::DailyRevertGasDrainExceeded {
+                spent_micro_eur: 450_000
+            }
+        );
+        assert!(ks_micro.is_halted());
     }
 
     #[test]

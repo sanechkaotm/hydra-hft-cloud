@@ -1,9 +1,11 @@
 pub mod amm_math;
+pub mod preflight;
 pub mod registry;
 pub mod state_sync;
 pub mod tx_builder;
 
 pub use amm_math::{ConstantProductMath, CurveStableSwapMath, UniV3Math};
+pub use preflight::{PreflightSimulationResult, PreflightSimulator, SimulationError};
 pub use registry::L2MainnetRegistry;
 pub use state_sync::{L2StateSynchronizer, MAX_TRACKED_POOLS, OnChainPoolState};
 pub use tx_builder::{AbiSwapStep, AtomicTxBuilder, Eip1559TxTemplate, keccak256};

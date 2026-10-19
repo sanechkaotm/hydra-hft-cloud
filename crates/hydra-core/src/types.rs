@@ -541,3 +541,19 @@ impl<T: Copy + Default, const N: usize> std::ops::Index<usize> for StackVec<T, N
         &self.buf[index]
     }
 }
+
+impl<T: Copy + Default, const N: usize> std::ops::Deref for StackVec<T, N> {
+    type Target = [T];
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+
+impl<T: Copy + Default, const N: usize> std::ops::DerefMut for StackVec<T, N> {
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut_slice()
+    }
+}
+
