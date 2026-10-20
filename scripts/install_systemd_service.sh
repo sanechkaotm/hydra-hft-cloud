@@ -74,15 +74,40 @@ StandardError=append:$REPO_DIR/logs/web_dashboard.log
 WantedBy=multi-user.target
 EOF"
 
-# 4. Reload and Enable systemd
+# 4. Write GitOps Auto-Updater Service (monitors GitHub for changes)
+UPDATER_SERVICE_FILE="/etc/systemd/system/hydra-updater.service"
+echo "Writing $UPDATER_SERVICE_FILE..."
+
+sudo bash -c "cat <<EOF > $UPDATER_SERVICE_FILE
+[Unit]
+Description=Hydra-HFT Continuous GitOps Auto-Updater Service
+After=network.target
+
+[Service]
+Type=simple
+User=$CURRENT_USER
+WorkingDirectory=$REPO_DIR
+ExecStart=/bin/bash $REPO_DIR/scripts/auto_update_daemon.sh
+Restart=always
+RestartSec=15
+StandardOutput=append:$REPO_DIR/logs/git_updater.log
+StandardError=append:$REPO_DIR/logs/git_updater.log
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+
+# 5. Reload and Enable systemd
 echo "Reloading systemd and enabling permanent auto-start on boot..."
 sudo systemctl daemon-reload
 sudo systemctl enable hydra.service
 sudo systemctl enable hydra-dashboard.service
+sudo systemctl enable hydra-updater.service
 
 echo "Starting services now..."
 sudo systemctl restart hydra.service
 sudo systemctl restart hydra-dashboard.service
+sudo systemctl restart hydra-updater.service
 
 echo ""
 echo "=========================================================================="
