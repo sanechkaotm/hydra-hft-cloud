@@ -4,5 +4,5 @@
 - **Current Live Equity:** `€150.0000` (**+0.000%**)
 - **Cumulative Net PnL:** `+€0.0000` (CEX/Mesh: `+€0.0000`, Base L2 DEX Atomic: `+€0.0000`)
 - **Live Polls Completed:** `25` (`0` executed `FIRE`, `25` held `HOLD`)
-- **Latest Network Poll RTT:** `86.4 ms` | **Internal SPFA Solver Time:** `39.47 µs`
-- **Top Active Arbitrage Ring:** `[PCS3/UNI3/UNI3] USDC->WETH->ETH->USDC` (`-2.03 bps` net after fees)
+- **Latest Network Poll RTT:** `96.1 ms` | **Internal SPFA Solver Time:** `58.61 µs`
+- **Top Active Arbitrage Ring:** `[UNI3/UNI3/PCS3] USDC->ETH->WETH->USDC` (`-2.11 bps` net after fees)
