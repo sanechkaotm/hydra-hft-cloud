@@ -2,8 +2,8 @@
 
 - **Starting Test Equity:** `€150.00` (€50 Tokyo Binance + €50 London Kraken + €50 Frankfurt Base L2)
 - **FlashLoan Multiplier:** `€15,000.00` (Balancer Vault 0.00% fee line)
-- **Current Live Equity:** `€150.0000` (**+0.000%**)
-- **Cumulative Net PnL:** `+€0.0000` (CEX/Mesh: `+€0.0000`, Base L2 DEX Atomic: `+€0.0000`)
-- **Live Polls Completed:** `5` (`0` executed `FIRE`, `5` held `HOLD`)
-- **Latest Network Poll RTT:** `37.5 ms` | **Internal SPFA Solver Time:** `151.90 µs`
-- **Top Active Arbitrage Ring:** `[UNI3/UNI3/PCS3] WETH->ETH->USDC->WETH` (`-1.89 bps` net after fees)
+- **Current Live Equity:** `€150.2116` (**+0.141%**)
+- **Cumulative Net PnL:** `+€0.2116` (CEX/Mesh: `+€0.0000`, Base L2 DEX Atomic: `+€0.2116`)
+- **Live Polls Completed:** `25` (`2` executed `FIRE`, `24` held `HOLD`)
+- **Latest Network Poll RTT:** `66.6 ms` | **Internal SPFA Solver Time:** `68.88 µs`
+- **Top Active Arbitrage Ring:** `[AERO/UNI3] WETH->VIRTUAL->WETH` (`+2.16 bps` net after fees)
