@@ -9,22 +9,25 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CURRENT_USER="$(id -un)"
+CURRENT_USER="${SUDO_USER:-$(id -un)}"
+USER_HOME=$(eval echo "~$CURRENT_USER")
 
 echo "=========================================================================="
 echo " HYDRA-HFT v4.0 — INSTALLING PERMANENT SYSTEMD SERVICE (24/7/365)"
 echo " Repository Directory : $REPO_DIR"
-echo " Service User         : $CURRENT_USER"
+echo " Service User         : $CURRENT_USER ($USER_HOME)"
 echo "=========================================================================="
 
 # 1. Compile release binary if missing
 if [ ! -f "$REPO_DIR/target/release/hydra-node" ]; then
     echo "Compiling release binary..."
     cd "$REPO_DIR"
+    export PATH="$USER_HOME/.cargo/bin:$PATH"
     cargo build --release
 fi
 
 mkdir -p "$REPO_DIR/logs"
+chown -R "$CURRENT_USER:$CURRENT_USER" "$REPO_DIR" 2>/dev/null || true
 
 # 2. Write Systemd Unit File
 SERVICE_FILE="/etc/systemd/system/hydra.service"
@@ -40,6 +43,7 @@ Wants=network-online.target
 Type=simple
 User=$CURRENT_USER
 WorkingDirectory=$REPO_DIR
+Environment=PATH=$USER_HOME/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=$REPO_DIR/target/release/hydra-node --paper-48h --capital 150.00 --polls 0
 Restart=always
 RestartSec=5
