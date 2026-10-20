@@ -2,7 +2,7 @@ use crate::config::NodeConfig;
 use hydra_core::{CurrencyId, FeeEngine, SymbolFilterSpec, VenueId};
 use hydra_dex::{AbiSwapStep, AtomicTxBuilder, L2MainnetRegistry};
 use hydra_graph::{
-    AmmPoolHop, BoundedSpfaDetector, CandidateCycle, ExchangeGraph,
+    AmmPoolHop, BoundedSpfaDetector, CandidateCycle, ExchangeGraph, OptimalTradeSizer,
 };
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -239,80 +239,114 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                     last_fired_gross_bps = gross_bps;
                     executed_cycles_count += 1;
                     
-                    // FlashLoan Multiplier (€15,000 Balancer Vault line at 0.00% fee) on Base DEX
-                    let (trade_notional, action_label) = if uses_l2_dex {
-                        (15_000.0f64, "FIRE_FLASH_BALANCER_0FEE")
-                    } else {
-                        let raw_notional = starting_equity_eur + cumulative_cex_mesh_pnl_eur + cumulative_dex_atomic_pnl_eur;
-                        let filter = SymbolFilterSpec::for_pair(best.nodes[0], best.nodes[1]);
-                        (filter.quantize_qty_floor(raw_notional), "FIRE_IOC_ATOMIC")
-                    };
-
-                    let gross_gain_eur = trade_notional * (best.net_profit_bps * 1e-4);
-                    let l2_gas_eur = if uses_l2_dex { 0.004 } else { 0.0 };
-                    let net_eur = (gross_gain_eur - l2_gas_eur).max(0.0);
-
-                    if uses_l2_dex {
-                        cumulative_dex_atomic_pnl_eur += net_eur;
-                        // Encode real HydraAtomicExecutor.sol calldata (provider 1 = Balancer Vault 0% fee)
+                    // Dynamic Optimal Trade Sizing (Analytical AMM Price Impact & Slippage Optimization)
+                    let (trade_notional, action_label, net_eur, is_profitable) = if uses_l2_dex {
                         let hops = (best.hop_count as usize).min(4);
-                        let mut steps = [AbiSwapStep::default(); 4];
+                        let mut amm_hops = [AmmPoolHop::default(); 4];
                         for h in 0..hops {
                             let e_id = best.edge_ids[h];
                             let edge = graph.edge(e_id);
-                            let (dex_type, pool_or_router, fee_tier) = match edge.venue {
-                                VenueId::BaseUniV3 => {
-                                    let tier = if edge.from == CurrencyId::AERO || edge.to == CurrencyId::AERO {
-                                        3000
-                                    } else if edge.from == CurrencyId::ETH || edge.to == CurrencyId::ETH {
-                                        100
-                                    } else {
-                                        500
-                                    };
-                                    (4u8, L2MainnetRegistry::BASE_UNIV3_ROUTER02, tier)
-                                }
-                                VenueId::BaseAerodromeStable => {
-                                    (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 1u32)
-                                }
-                                _ => {
-                                    (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 0u32)
-                                }
-                            };
-                            steps[h] = AbiSwapStep {
-                                dex_type,
-                                pool_or_router,
-                                token_in: L2MainnetRegistry::base_token_address(best.nodes[h]),
-                                token_out: L2MainnetRegistry::base_token_address(best.nodes[h + 1]),
-                                fee_tier,
-                                curve_index_in: 0,
-                                curve_index_out: 1,
-                            };
+                            let r_in = edge.max_capacity_in.max(10.0);
+                            let r_out = (edge.max_capacity_in * edge.rate).max(10.0);
+                            amm_hops[h] = AmmPoolHop::new(r_in, r_out, edge.fee_fraction);
                         }
-                        let mut cd_buf = [0u8; 1536];
-                        let loan_token = L2MainnetRegistry::base_token_address(best.nodes[0]);
-                        let loan_amount_wei = if best.nodes[0] == CurrencyId::WETH {
-                            ((trade_notional / 2500.0) * 1e18) as u128
-                        } else {
-                            (trade_notional * 1e6) as u128
-                        };
-                        let min_net_profit_wei = if best.nodes[0] == CurrencyId::WETH {
-                            ((net_eur / 2500.0) * 1e18).max(1.0) as u128
-                        } else {
-                            (net_eur * 1e6).max(1.0) as u128
-                        };
-                        let _cd_len = tx_builder.encode_execute_flash_calldata(
-                            1, // Balancer Vault provider
-                            &loan_token,
-                            loan_amount_wei,
-                            0, // zero internal contribution
-                            min_net_profit_wei,
-                            &steps[..hops],
-                            &mut cd_buf,
+                        let sizing = OptimalTradeSizer::size_dex_amm_cycle(
+                            &amm_hops[..hops],
+                            50.0,     // internal capital
+                            15_000.0, // Balancer Vault 0% FlashLoan maximum
+                            0.0,      // 0.00% fee Balancer line
+                            0.004,    // €0.004 L2 gas
+                            0.01,     // minimum net profit hurdle (€0.01)
                         );
+                        if sizing.executable && sizing.executable_input_base > 0.0 {
+                            (sizing.executable_input_base, "FIRE_FLASH_OPTIMAL", sizing.net_profit_base, true)
+                        } else {
+                            // Bounded conservative fraction (2%) of the bottleneck pool depth
+                            let min_cap = (0..hops).map(|h| graph.edge(best.edge_ids[h]).max_capacity_in).fold(f64::INFINITY, f64::min);
+                            let conservative_notional = (min_cap * 0.02).clamp(1000.0, 3500.0);
+                            let gross = conservative_notional * (best.net_profit_bps * 1e-4);
+                            let net = (gross - 0.004).max(0.0);
+                            if net > 0.01 {
+                                (conservative_notional, "FIRE_FLASH_BALANCER_0FEE", net, true)
+                            } else {
+                                (0.0, "HOLD_SLIPPAGE", 0.0, false)
+                            }
+                        }
                     } else {
-                        cumulative_cex_mesh_pnl_eur += net_eur;
+                        let raw_notional = starting_equity_eur + cumulative_cex_mesh_pnl_eur + cumulative_dex_atomic_pnl_eur;
+                        let filter = SymbolFilterSpec::for_pair(best.nodes[0], best.nodes[1]);
+                        let notional = filter.quantize_qty_floor(raw_notional);
+                        let gross = notional * (best.net_profit_bps * 1e-4);
+                        (notional, "FIRE_IOC_ATOMIC", gross.max(0.0), true)
+                    };
+
+                    if !is_profitable || net_eur <= 0.0 {
+                        hold_cycles_count += 1;
+                        ("HOLD_SLIPPAGE", 0.0, 0.0)
+                    } else {
+                        executed_cycles_count += 1;
+                        if uses_l2_dex {
+                            cumulative_dex_atomic_pnl_eur += net_eur;
+                            // Encode real HydraAtomicExecutor.sol calldata (provider 1 = Balancer Vault 0% fee)
+                            let hops = (best.hop_count as usize).min(4);
+                            let mut steps = [AbiSwapStep::default(); 4];
+                            for h in 0..hops {
+                                let e_id = best.edge_ids[h];
+                                let edge = graph.edge(e_id);
+                                let (dex_type, pool_or_router, fee_tier) = match edge.venue {
+                                    VenueId::BaseUniV3 => {
+                                        let tier = if edge.from == CurrencyId::AERO || edge.to == CurrencyId::AERO {
+                                            3000
+                                        } else if edge.from == CurrencyId::ETH || edge.to == CurrencyId::ETH {
+                                            100
+                                        } else {
+                                            500
+                                        };
+                                        (4u8, L2MainnetRegistry::BASE_UNIV3_ROUTER02, tier)
+                                    }
+                                    VenueId::BaseAerodromeStable => {
+                                        (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 1u32)
+                                    }
+                                    _ => {
+                                        (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 0u32)
+                                    }
+                                };
+                                steps[h] = AbiSwapStep {
+                                    dex_type,
+                                    pool_or_router,
+                                    token_in: L2MainnetRegistry::base_token_address(best.nodes[h]),
+                                    token_out: L2MainnetRegistry::base_token_address(best.nodes[h + 1]),
+                                    fee_tier,
+                                    curve_index_in: 0,
+                                    curve_index_out: 1,
+                                };
+                            }
+                            let mut cd_buf = [0u8; 1536];
+                            let loan_token = L2MainnetRegistry::base_token_address(best.nodes[0]);
+                            let loan_amount_wei = if best.nodes[0] == CurrencyId::WETH {
+                                ((trade_notional / 2500.0) * 1e18) as u128
+                            } else {
+                                (trade_notional * 1e6) as u128
+                            };
+                            let min_net_profit_wei = if best.nodes[0] == CurrencyId::WETH {
+                                ((net_eur / 2500.0) * 1e18).max(1.0) as u128
+                            } else {
+                                (net_eur * 1e6).max(1.0) as u128
+                            };
+                            let _cd_len = tx_builder.encode_execute_flash_calldata(
+                                1, // Balancer Vault provider
+                                &loan_token,
+                                loan_amount_wei,
+                                0, // zero internal contribution
+                                min_net_profit_wei,
+                                &steps[..hops],
+                                &mut cd_buf,
+                            );
+                        } else {
+                            cumulative_cex_mesh_pnl_eur += net_eur;
+                        }
+                        (action_label, trade_notional, net_eur)
                     }
-                    (action_label, trade_notional, net_eur)
                 } else {
                     hold_cycles_count += 1;
                     let label = if executable { "HOLD_WAIT" } else { "HOLD_NON_ATOMIC" };
