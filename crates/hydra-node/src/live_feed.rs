@@ -206,9 +206,18 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
         if !candidates.is_empty() {
             // Only cycles whose every leg lives in ONE execution domain (one chain or one exchange)
             // can be executed atomically. Cross-chain / CEX+DEX mixes are reported but never booked.
-            let atomic_idx = candidates.iter().position(|c| is_single_domain_cycle(&graph, c));
-            let executable = atomic_idx.is_some();
-            let best = &candidates[atomic_idx.unwrap_or(0)];
+            let best_atomic = candidates
+                .iter()
+                .filter(|c| is_single_domain_cycle(&graph, c))
+                .max_by(|a, b| {
+                    a.net_profit_bps
+                        .partial_cmp(&b.net_profit_bps)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+            let (executable, best) = match best_atomic {
+                Some(atomic) => (true, atomic),
+                None => (false, &candidates[0]),
+            };
             let hops = best.hop_count as usize;
             let mut gross_mult = 1.0f64;
             let mut uses_l2_dex = false;
@@ -295,10 +304,16 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                                 let edge = graph.edge(e_id);
                                 let (dex_type, pool_or_router, fee_tier) = match edge.venue {
                                     VenueId::BaseUniV3 => {
-                                        let tier = if edge.from == CurrencyId::AERO || edge.to == CurrencyId::AERO {
+                                        let tier = if edge.from == CurrencyId::AERO
+                                            || edge.to == CurrencyId::AERO
+                                            || edge.from == CurrencyId::VIRTUAL
+                                            || edge.to == CurrencyId::VIRTUAL
+                                        {
                                             3000
                                         } else if edge.from == CurrencyId::ETH || edge.to == CurrencyId::ETH {
                                             100
+                                        } else if edge.from == CurrencyId::CBBTC || edge.to == CurrencyId::CBBTC {
+                                            500
                                         } else {
                                             500
                                         };
@@ -325,11 +340,19 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                             let loan_token = L2MainnetRegistry::base_token_address(best.nodes[0]);
                             let loan_amount_wei = if best.nodes[0] == CurrencyId::WETH {
                                 ((trade_notional / 2500.0) * 1e18) as u128
+                            } else if best.nodes[0] == CurrencyId::CBBTC {
+                                ((trade_notional / 83000.0) * 1e8) as u128
+                            } else if best.nodes[0] == CurrencyId::VIRTUAL {
+                                ((trade_notional / 0.68) * 1e18) as u128
                             } else {
                                 (trade_notional * 1e6) as u128
                             };
                             let min_net_profit_wei = if best.nodes[0] == CurrencyId::WETH {
                                 ((net_eur / 2500.0) * 1e18).max(1.0) as u128
+                            } else if best.nodes[0] == CurrencyId::CBBTC {
+                                ((net_eur / 83000.0) * 1e8).max(1.0) as u128
+                            } else if best.nodes[0] == CurrencyId::VIRTUAL {
+                                ((net_eur / 0.68) * 1e18).max(1.0) as u128
                             } else {
                                 (net_eur * 1e6).max(1.0) as u128
                             };
@@ -572,7 +595,7 @@ fn extract_wire_rtt_ms(raw: &str) -> f64 {
 fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
     let _ = fs::create_dir_all("logs");
     let base_req_file = "logs/base_rpc_req.json";
-    let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x3d5d143381916280ff91407febeb52f2b60f33cf","data":"0x3850c7bd"},"latest"],"id":6},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7f670f78b17dec44d5ef68a48740b6f8849cc2e6","data":"0x0902f1ac"},"latest"],"id":7},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6cdcb1c4a4d1c3c6d054b27ac5b77e89eafb971d","data":"0x0902f1ac"},"latest"],"id":8}]"#;
+    let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x3d5d143381916280ff91407febeb52f2b60f33cf","data":"0x3850c7bd"},"latest"],"id":6},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7f670f78b17dec44d5ef68a48740b6f8849cc2e6","data":"0x0902f1ac"},"latest"],"id":7},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6cdcb1c4a4d1c3c6d054b27ac5b77e89eafb971d","data":"0x0902f1ac"},"latest"],"id":8},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x1d4dab3f27c7f656b6323c1d6ef713b48a8f72f1","data":"0x3850c7bd"},"latest"],"id":9},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x21594b992f68495dd28d605834b58889d0a727c7","data":"0x0902f1ac"},"latest"],"id":10},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xfbb6eed8e7aa03b138556eedaf5d271a5e1e43ef","data":"0x3850c7bd"},"latest"],"id":11},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x9c38b55f9a9aba91bbcedeb12bf4428f47a6a0b8","data":"0x0902f1ac"},"latest"],"id":12},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7aea2e8a3843516afa07293a10ac8e49906dabd1","data":"0x3850c7bd"},"latest"],"id":13},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2578365b3dfa7ffe60108e181efb79feddec2319","data":"0x0902f1ac"},"latest"],"id":14}]"#;
     let _ = fs::write(base_req_file, rpc_payload);
 
     let arb_req_file = "logs/arb_rpc_req.json";
@@ -913,6 +936,144 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                             bid_qty: 300_000.0,
                             ask_price: usdc_per_aero * 1.00001,
                             ask_qty: 300_000.0,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Parse id=9 (Base Mainnet UniV3 WETH/VIRTUAL 30-bps pool 0x1d4d...72f1 slot0)
+    if let Some(hex) = extract_rpc_result(resp, 9) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let weth_per_virt = ratio * ratio; // 18 decimals / 18 decimals
+                if weth_per_virt > 0.00001 && weth_per_virt < 0.1 {
+                    out.push(LiveBookTicker {
+                        venue: VenueId::BaseUniV3,
+                        base: CurrencyId::VIRTUAL,
+                        quote: CurrencyId::WETH,
+                        bid_price: weth_per_virt * 0.99999,
+                        bid_qty: 3_000_000.0,
+                        ask_price: weth_per_virt * 1.00001,
+                        ask_qty: 3_000_000.0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Parse id=10 (Aerodrome V2 WETH/VIRTUAL volatile pool 0x2159...27c7 getReserves)
+    if let Some(hex) = extract_rpc_result(resp, 10) {
+        if hex.len() >= 130 {
+            if let (Ok(r0), Ok(r1)) = (
+                u128::from_str_radix(&hex[2..66], 16),
+                u128::from_str_radix(&hex[66..130], 16),
+            ) {
+                if r0 > 0 && r1 > 0 {
+                    let weth_per_virt = (r1 as f64) / (r0 as f64);
+                    if weth_per_virt > 0.00001 && weth_per_virt < 0.1 {
+                        out.push(LiveBookTicker {
+                            venue: VenueId::BaseAerodromeVolatile,
+                            base: CurrencyId::VIRTUAL,
+                            quote: CurrencyId::WETH,
+                            bid_price: weth_per_virt * 0.99999,
+                            bid_qty: 3_500_000.0,
+                            ask_price: weth_per_virt * 1.00001,
+                            ask_qty: 3_500_000.0,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Parse id=11 (Base Mainnet UniV3 cbBTC/USDC 5-bps pool 0xfbb6...43ef slot0)
+    if let Some(hex) = extract_rpc_result(resp, 11) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let usdc_per_cbbtc = 100.0 / (ratio * ratio);
+                if usdc_per_cbbtc > 10_000.0 && usdc_per_cbbtc < 500_000.0 {
+                    out.push(LiveBookTicker {
+                        venue: VenueId::BaseUniV3,
+                        base: CurrencyId::CBBTC,
+                        quote: CurrencyId::USDC,
+                        bid_price: usdc_per_cbbtc * 0.99999,
+                        bid_qty: 15.0,
+                        ask_price: usdc_per_cbbtc * 1.00001,
+                        ask_qty: 15.0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Parse id=12 (Aerodrome V2 cbBTC/USDC volatile pool 0x9c38...a0b8 getReserves)
+    if let Some(hex) = extract_rpc_result(resp, 12) {
+        if hex.len() >= 130 {
+            if let (Ok(r0), Ok(r1)) = (
+                u128::from_str_radix(&hex[2..66], 16),
+                u128::from_str_radix(&hex[66..130], 16),
+            ) {
+                if r0 > 0 && r1 > 0 {
+                    let usdc_per_cbbtc = ((r0 as f64) / 1e6) / ((r1 as f64) / 1e8);
+                    if usdc_per_cbbtc > 10_000.0 && usdc_per_cbbtc < 500_000.0 {
+                        out.push(LiveBookTicker {
+                            venue: VenueId::BaseAerodromeVolatile,
+                            base: CurrencyId::CBBTC,
+                            quote: CurrencyId::USDC,
+                            bid_price: usdc_per_cbbtc * 0.99999,
+                            bid_qty: 10.0,
+                            ask_price: usdc_per_cbbtc * 1.00001,
+                            ask_qty: 10.0,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Parse id=13 (Base Mainnet UniV3 cbBTC/WETH 5-bps pool 0x7aea...abd1 slot0)
+    if let Some(hex) = extract_rpc_result(resp, 13) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let weth_per_cbbtc = 1e-10 / (ratio * ratio);
+                if weth_per_cbbtc > 5.0 && weth_per_cbbtc < 200.0 {
+                    out.push(LiveBookTicker {
+                        venue: VenueId::BaseUniV3,
+                        base: CurrencyId::CBBTC,
+                        quote: CurrencyId::WETH,
+                        bid_price: weth_per_cbbtc * 0.99999,
+                        bid_qty: 25.0,
+                        ask_price: weth_per_cbbtc * 1.00001,
+                        ask_qty: 25.0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Parse id=14 (Aerodrome V2 cbBTC/WETH volatile pool 0x2578...2319 getReserves)
+    if let Some(hex) = extract_rpc_result(resp, 14) {
+        if hex.len() >= 130 {
+            if let (Ok(r0), Ok(r1)) = (
+                u128::from_str_radix(&hex[2..66], 16),
+                u128::from_str_radix(&hex[66..130], 16),
+            ) {
+                if r0 > 0 && r1 > 0 {
+                    let weth_per_cbbtc = ((r0 as f64) / 1e18) / ((r1 as f64) / 1e8);
+                    if weth_per_cbbtc > 5.0 && weth_per_cbbtc < 200.0 {
+                        out.push(LiveBookTicker {
+                            venue: VenueId::BaseAerodromeVolatile,
+                            base: CurrencyId::CBBTC,
+                            quote: CurrencyId::WETH,
+                            bid_price: weth_per_cbbtc * 0.99999,
+                            bid_qty: 20.0,
+                            ask_price: weth_per_cbbtc * 1.00001,
+                            ask_qty: 20.0,
                         });
                     }
                 }

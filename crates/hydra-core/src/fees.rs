@@ -109,6 +109,54 @@ impl FeeEngine {
         {
             return 0.0030; // 30 bps Aerodrome V2 volatile USDC/AERO pool on Base (0x6cdc...971d)
         }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::VIRTUAL) | (CurrencyId::VIRTUAL, CurrencyId::WETH)
+            )
+        {
+            return 0.0030; // 30 bps Uniswap V3 WETH/VIRTUAL pool on Base (0x1d4d...72f1)
+        }
+        if matches!(venue, VenueId::BaseAerodromeVolatile)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::VIRTUAL) | (CurrencyId::VIRTUAL, CurrencyId::WETH)
+            )
+        {
+            return 0.0030; // 30 bps Aerodrome V2 volatile WETH/VIRTUAL pool on Base (0x2159...27c7)
+        }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
+                (CurrencyId::USDC, CurrencyId::CBBTC) | (CurrencyId::CBBTC, CurrencyId::USDC)
+            )
+        {
+            return 0.0005; // 5 bps Uniswap V3 cbBTC/USDC pool on Base (0xfbb6...43ef)
+        }
+        if matches!(venue, VenueId::BaseAerodromeVolatile)
+            && matches!(
+                (from, to),
+                (CurrencyId::USDC, CurrencyId::CBBTC) | (CurrencyId::CBBTC, CurrencyId::USDC)
+            )
+        {
+            return 0.0030; // 30 bps Aerodrome V2 volatile cbBTC/USDC pool on Base (0x9c38...a0b8)
+        }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::CBBTC) | (CurrencyId::CBBTC, CurrencyId::WETH)
+            )
+        {
+            return 0.0005; // 5 bps Uniswap V3 cbBTC/WETH pool on Base (0x7aea...abd1)
+        }
+        if matches!(venue, VenueId::BaseAerodromeVolatile)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::CBBTC) | (CurrencyId::CBBTC, CurrencyId::WETH)
+            )
+        {
+            return 0.0030; // 30 bps Aerodrome V2 volatile cbBTC/WETH pool on Base (0x2578...2319)
+        }
         self.venue_fee_fraction(venue, custom_uni_v3_fee_pips)
     }
 

@@ -50,10 +50,12 @@ pub enum CurrencyId {
     BNB = 26,
     ARB = 27,
     AERO = 28,
+    VIRTUAL = 29,
+    CBBTC = 30,
 }
 
 impl CurrencyId {
-    pub const ALL: [CurrencyId; 29] = [
+    pub const ALL: [CurrencyId; 31] = [
         Self::EUR,
         Self::USD,
         Self::GBP,
@@ -83,6 +85,8 @@ impl CurrencyId {
         Self::BNB,
         Self::ARB,
         Self::AERO,
+        Self::VIRTUAL,
+        Self::CBBTC,
     ];
 
     /// Base capital anchor currencies (`EUR`, `USDC`, `USDT`, `EURC`, `WETH`).
@@ -144,6 +148,8 @@ impl CurrencyId {
             Self::BNB => "BNB",
             Self::ARB => "ARB",
             Self::AERO => "AERO",
+            Self::VIRTUAL => "VIRTUAL",
+            Self::CBBTC => "cbBTC",
         }
     }
 
@@ -178,6 +184,8 @@ impl CurrencyId {
             "BNB" => Some(Self::BNB),
             "ARB" => Some(Self::ARB),
             "AERO" => Some(Self::AERO),
+            "VIRTUAL" => Some(Self::VIRTUAL),
+            "CBBTC" | "cbBTC" | "CBBtc" => Some(Self::CBBTC),
             _ => None,
         }
     }

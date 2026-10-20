@@ -101,10 +101,34 @@ impl BoundedSpfaDetector {
                     continue;
                 }
                 let v2 = e2.to;
-                if v2 == v0 || v2 == v1 {
+                let w12 = w1.saturating_add(e2.log_weight_scaled);
+
+                // Case k = 2: Base (v0) -> v1 -> Base (v0)
+                // Spatial 2-leg arbitrage between two venues (e.g. UniV3 vs Aerodrome)
+                if v2 == v0 {
+                    if e1.venue != e2.venue && w12 < self.threshold_log_weight_scaled {
+                        let net_mult = e1.net_rate() * e2.net_rate();
+                        let net_bps = (net_mult - 1.0) * 10_000.0;
+                        let boost = e1.priority_boost_bps.saturating_add(e2.priority_boost_bps);
+
+                        let cycle = CandidateCycle {
+                            base_currency: v0,
+                            hop_count: 2,
+                            edge_ids: [e1_id, e2_id, INVALID_EDGE_IDX, INVALID_EDGE_IDX],
+                            nodes: [v0, v1, v0, v0, v0],
+                            total_log_weight_scaled: w12,
+                            net_multiplier: net_mult,
+                            net_profit_bps: net_bps,
+                            impulse_boost_bps: boost,
+                        };
+                        Self::insert_ranked_candidate(out_candidates, cycle);
+                    }
                     continue;
                 }
-                let w12 = w1.saturating_add(e2.log_weight_scaled);
+
+                if v2 == v1 {
+                    continue;
+                }
 
                 // Hop 3: v2 -> v3
                 let edges_2 = graph.outgoing_edges(v2);
