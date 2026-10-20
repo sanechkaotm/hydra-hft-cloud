@@ -1,8 +1,9 @@
 # HYDRA-HFT v4.0 — Live €150.00 Paper-Trading Telemetry Dashboard
 
 - **Starting Test Equity:** `€150.00` (€50 Tokyo Binance + €50 London Kraken + €50 Frankfurt Base L2)
-- **Current Live Equity:** `€150.0000` (**+0.000%**)
-- **Cumulative Net PnL:** `+€0.0000` (CEX/Mesh: `+€0.0000`, Base L2 DEX Atomic: `+€0.0000`)
-- **Live Polls Completed:** `25` (`0` executed `FIRE`, `25` held `HOLD`)
-- **Latest Network Poll RTT:** `46.5 ms` | **Internal SPFA Solver Time:** `40.34 µs`
-- **Top Active Arbitrage Ring:** `[UNI3/UNI3/PCS3] USDC->ETH->WETH->USDC` (`-1.62 bps` net after fees)
+- **FlashLoan Multiplier:** `€15,000.00` (Balancer Vault 0.00% fee line)
+- **Current Live Equity:** `€162.6038` (**+8.403%**)
+- **Cumulative Net PnL:** `+€12.6038` (CEX/Mesh: `+€0.0000`, Base L2 DEX Atomic: `+€12.6038`)
+- **Live Polls Completed:** `5` (`1` executed `FIRE`, `4` held `HOLD`)
+- **Latest Network Poll RTT:** `55.4 ms` | **Internal SPFA Solver Time:** `128.70 µs`
+- **Top Active Arbitrage Ring:** `[UNI3/UNI3/AERO/AERO] USDC->ETH->WETH->AERO->USDC` (`+8.41 bps` net after fees)
