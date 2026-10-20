@@ -3,3 +3,5 @@
 /contracts/cache/
 /logs/*.json
 .env
+__pycache__/
+scratch_smoke_run/
