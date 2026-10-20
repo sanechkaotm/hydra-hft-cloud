@@ -152,6 +152,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: inline-block;
     }
     .tag-fire { background: rgba(16, 185, 129, 0.2); color: var(--green); border: 1px solid var(--green); }
+    .tag-flash { background: rgba(56, 189, 248, 0.2); color: var(--accent); border: 1px solid var(--accent); font-weight: 700; }
     .tag-hold { background: rgba(148, 163, 184, 0.1); color: var(--text-muted); }
     .tag-non-atomic { background: rgba(245, 158, 11, 0.15); color: var(--yellow); }
     .refresh-note { font-size: 12px; color: var(--text-muted); }
@@ -191,6 +192,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <div class="card-label">Network Backbone RTT</div>
       <div class="card-val" id="val-rtt" style="color: var(--purple);">27.4 ms</div>
       <div class="card-sub">AWS us-east-1 &bull; Direct TLS</div>
+    </div>
+    <div class="card">
+      <div class="card-label">FlashLoan Multiplier Line</div>
+      <div class="card-val" style="color: #38bdf8;">€15,000.00</div>
+      <div class="card-sub" style="color: #10b981;">Balancer Vault 0.00% Fee</div>
     </div>
     <div class="card">
       <div class="card-label">Top Active Arbitrage Ring</div>
@@ -260,7 +266,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           data.ticks.slice(-15).reverse().forEach(t => {
             const tr = document.createElement('tr');
             let tagClass = 'tag-hold';
-            if (t.action.includes('FIRE')) tagClass = 'tag-fire';
+            if (t.action.includes('FIRE_FLASH')) tagClass = 'tag-flash';
+            else if (t.action.includes('FIRE')) tagClass = 'tag-fire';
             else if (t.action.includes('NON_ATOMIC')) tagClass = 'tag-non-atomic';
 
             tr.innerHTML = `

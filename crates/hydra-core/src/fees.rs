@@ -85,6 +85,30 @@ impl FeeEngine {
         {
             return 0.0001; // 1 bps (100 pips) PancakeSwap V3 WETH/USDC pool on Base Mainnet (0x72ab...2d38)
         }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::AERO) | (CurrencyId::AERO, CurrencyId::WETH)
+            )
+        {
+            return 0.0030; // 30 bps (3000 pips) Uniswap V3 WETH/AERO pool on Base (0x3d5d...33cf)
+        }
+        if matches!(venue, VenueId::BaseAerodromeVolatile)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::AERO) | (CurrencyId::AERO, CurrencyId::WETH)
+            )
+        {
+            return 0.0030; // 30 bps Aerodrome V2 volatile WETH/AERO pool on Base (0x7f67...c2e6)
+        }
+        if matches!(venue, VenueId::BaseAerodromeVolatile)
+            && matches!(
+                (from, to),
+                (CurrencyId::USDC, CurrencyId::AERO) | (CurrencyId::AERO, CurrencyId::USDC)
+            )
+        {
+            return 0.0030; // 30 bps Aerodrome V2 volatile USDC/AERO pool on Base (0x6cdc...971d)
+        }
         self.venue_fee_fraction(venue, custom_uni_v3_fee_pips)
     }
 

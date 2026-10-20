@@ -85,8 +85,8 @@ impl CurrencyId {
         Self::AERO,
     ];
 
-    /// Base capital anchor currencies (`EUR`, `USDC`, `USDT`, `EURC`).
-    pub const BASE_ANCHORS: [CurrencyId; 4] = [Self::EUR, Self::USDC, Self::USDT, Self::EURC];
+    /// Base capital anchor currencies (`EUR`, `USDC`, `USDT`, `EURC`, `WETH`).
+    pub const BASE_ANCHORS: [CurrencyId; 5] = [Self::EUR, Self::USDC, Self::USDT, Self::EURC, Self::WETH];
 
     #[inline(always)]
     pub const fn as_idx(self) -> usize {

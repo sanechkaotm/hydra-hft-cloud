@@ -99,6 +99,60 @@ impl AtomicTxBuilder {
         offset
     }
 
+    /// Encodes the exact Solidity ABI calldata for `executeFlashArbitrage` into `out_buf` (zero heap allocation).
+    /// Used for Balancer Vault (provider=1) or Aave V3 (provider=0) FlashLoans.
+    #[inline(always)]
+    pub fn encode_execute_flash_calldata(
+        &self,
+        provider: u8,
+        base_token: &[u8; 20],
+        loan_amount_wei: u128,
+        internal_contribution_wei: u128,
+        min_net_profit_wei: u128,
+        steps: &[AbiSwapStep],
+        out_buf: &mut [u8; 1536],
+    ) -> usize {
+        out_buf.fill(0);
+        out_buf[0..4].copy_from_slice(&self.selector_execute_flash);
+
+        let mut offset = 4usize;
+        // Word 0: uint8 provider
+        out_buf[offset + 31] = provider;
+        offset += 32;
+
+        // Word 1: address baseToken
+        out_buf[offset + 12..offset + 32].copy_from_slice(base_token);
+        offset += 32;
+
+        // Word 2: uint256 loanAmount
+        out_buf[offset + 16..offset + 32].copy_from_slice(&loan_amount_wei.to_be_bytes());
+        offset += 32;
+
+        // Word 3: uint256 internalContribution
+        out_buf[offset + 16..offset + 32].copy_from_slice(&internal_contribution_wei.to_be_bytes());
+        offset += 32;
+
+        // Word 4: uint256 minNetProfit
+        out_buf[offset + 16..offset + 32].copy_from_slice(&min_net_profit_wei.to_be_bytes());
+        offset += 32;
+
+        // Word 5: offset to dynamic array `steps` (6 * 32 = 192 = 0xC0)
+        out_buf[offset + 24..offset + 32].copy_from_slice(&192u64.to_be_bytes());
+        offset += 32;
+
+        // Word 6: steps.length
+        let n_steps = steps.len().min(4);
+        out_buf[offset + 24..offset + 32].copy_from_slice(&(n_steps as u64).to_be_bytes());
+        offset += 32;
+
+        // Each static struct `SwapStep` occupies 7 * 32 = 224 bytes
+        for step in &steps[..n_steps] {
+            offset += Self::encode_swap_step(step, &mut out_buf[offset..]);
+        }
+
+        offset
+    }
+
     /// Encodes a single `SwapStep` tuple into 7 ABI words (224 bytes).
     #[inline(always)]
     fn encode_swap_step(step: &AbiSwapStep, dst: &mut [u8]) -> usize {

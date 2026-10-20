@@ -145,7 +145,7 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
     let status_md_path = "logs/paper_48h_live_status.md";
 
     let starting_equity_eur = cfg.initial_capital_eur;
-    let flashloan_credit_eur = starting_equity_eur * 10.0; // 10x Balancer 0%-fee atomic L2 flash credit
+    let flashloan_credit_eur = 15_000.0f64; // Balancer Vault 0.00% fee atomic L2 flash line
     let mut cumulative_cex_mesh_pnl_eur = 0.0f64;
     let mut cumulative_dex_atomic_pnl_eur = 0.0f64;
     let mut executed_cycles_count = 0usize;
@@ -238,50 +238,81 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                 if executable && best.net_profit_bps >= cfg.min_net_profit_bps && is_new_price_wave {
                     last_fired_gross_bps = gross_bps;
                     executed_cycles_count += 1;
-                    let raw_notional =
-                        starting_equity_eur + cumulative_cex_mesh_pnl_eur + cumulative_dex_atomic_pnl_eur;
-                    let filter = SymbolFilterSpec::for_pair(best.nodes[0], best.nodes[1]);
-                    let quantized_notional = filter.quantize_qty_floor(raw_notional);
+                    
+                    // FlashLoan Multiplier (€15,000 Balancer Vault line at 0.00% fee) on Base DEX
+                    let (trade_notional, action_label) = if uses_l2_dex {
+                        (15_000.0f64, "FIRE_FLASH_BALANCER_0FEE")
+                    } else {
+                        let raw_notional = starting_equity_eur + cumulative_cex_mesh_pnl_eur + cumulative_dex_atomic_pnl_eur;
+                        let filter = SymbolFilterSpec::for_pair(best.nodes[0], best.nodes[1]);
+                        (filter.quantize_qty_floor(raw_notional), "FIRE_IOC_ATOMIC")
+                    };
 
-                    let gross_gain_eur = quantized_notional * (best.net_profit_bps * 1e-4);
-                    let l2_gas_eur = if uses_l2_dex { 0.002 } else { 0.0 };
+                    let gross_gain_eur = trade_notional * (best.net_profit_bps * 1e-4);
+                    let l2_gas_eur = if uses_l2_dex { 0.004 } else { 0.0 };
                     let net_eur = (gross_gain_eur - l2_gas_eur).max(0.0);
 
                     if uses_l2_dex {
                         cumulative_dex_atomic_pnl_eur += net_eur;
-                        // Encode real HydraAtomicExecutor.sol calldata to verify 0-error readiness
-                        let steps = [
-                            AbiSwapStep {
-                                dex_type: 3,
-                                pool_or_router: L2MainnetRegistry::BASE_AERODROME_ROUTER,
-                                token_in: L2MainnetRegistry::BASE_USDC,
-                                token_out: L2MainnetRegistry::BASE_WETH,
-                                fee_tier: 0,
+                        // Encode real HydraAtomicExecutor.sol calldata (provider 1 = Balancer Vault 0% fee)
+                        let hops = (best.hop_count as usize).min(4);
+                        let mut steps = [AbiSwapStep::default(); 4];
+                        for h in 0..hops {
+                            let e_id = best.edge_ids[h];
+                            let edge = graph.edge(e_id);
+                            let (dex_type, pool_or_router, fee_tier) = match edge.venue {
+                                VenueId::BaseUniV3 => {
+                                    let tier = if edge.from == CurrencyId::AERO || edge.to == CurrencyId::AERO {
+                                        3000
+                                    } else if edge.from == CurrencyId::ETH || edge.to == CurrencyId::ETH {
+                                        100
+                                    } else {
+                                        500
+                                    };
+                                    (4u8, L2MainnetRegistry::BASE_UNIV3_ROUTER02, tier)
+                                }
+                                VenueId::BaseAerodromeStable => {
+                                    (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 1u32)
+                                }
+                                _ => {
+                                    (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 0u32)
+                                }
+                            };
+                            steps[h] = AbiSwapStep {
+                                dex_type,
+                                pool_or_router,
+                                token_in: L2MainnetRegistry::base_token_address(best.nodes[h]),
+                                token_out: L2MainnetRegistry::base_token_address(best.nodes[h + 1]),
+                                fee_tier,
                                 curve_index_in: 0,
                                 curve_index_out: 1,
-                            },
-                            AbiSwapStep {
-                                dex_type: 4,
-                                pool_or_router: L2MainnetRegistry::BASE_UNIV3_ROUTER02,
-                                token_in: L2MainnetRegistry::BASE_WETH,
-                                token_out: L2MainnetRegistry::BASE_USDC,
-                                fee_tier: 500,
-                                curve_index_in: 0,
-                                curve_index_out: 1,
-                            },
-                        ];
+                            };
+                        }
                         let mut cd_buf = [0u8; 1536];
-                        let _cd_len = tx_builder.encode_execute_atomic_calldata(
-                            &L2MainnetRegistry::BASE_EURC,
-                            (quantized_notional * 1e6) as u128,
-                            (net_eur * 1e6).max(1.0) as u128,
-                            &steps,
+                        let loan_token = L2MainnetRegistry::base_token_address(best.nodes[0]);
+                        let loan_amount_wei = if best.nodes[0] == CurrencyId::WETH {
+                            ((trade_notional / 2500.0) * 1e18) as u128
+                        } else {
+                            (trade_notional * 1e6) as u128
+                        };
+                        let min_net_profit_wei = if best.nodes[0] == CurrencyId::WETH {
+                            ((net_eur / 2500.0) * 1e18).max(1.0) as u128
+                        } else {
+                            (net_eur * 1e6).max(1.0) as u128
+                        };
+                        let _cd_len = tx_builder.encode_execute_flash_calldata(
+                            1, // Balancer Vault provider
+                            &loan_token,
+                            loan_amount_wei,
+                            0, // zero internal contribution
+                            min_net_profit_wei,
+                            &steps[..hops],
                             &mut cd_buf,
                         );
                     } else {
                         cumulative_cex_mesh_pnl_eur += net_eur;
                     }
-                    ("FIRE_IOC_ATOMIC", quantized_notional, net_eur)
+                    (action_label, trade_notional, net_eur)
                 } else {
                     hold_cycles_count += 1;
                     let label = if executable { "HOLD_WAIT" } else { "HOLD_NON_ATOMIC" };
@@ -383,6 +414,7 @@ fn write_status_markdown(
     let content = format!(
         "# HYDRA-HFT v4.0 — Live €150.00 Paper-Trading Telemetry Dashboard\n\n\
          - **Starting Test Equity:** `€{:.2}` (€50 Tokyo Binance + €50 London Kraken + €50 Frankfurt Base L2)\n\
+         - **FlashLoan Multiplier:** `€15,000.00` (Balancer Vault 0.00% fee line)\n\
          - **Current Live Equity:** `€{:.4}` (**{:+.3}%**)\n\
          - **Cumulative Net PnL:** `+€{:.4}` (CEX/Mesh: `+€{:.4}`, Base L2 DEX Atomic: `+€{:.4}`)\n\
          - **Live Polls Completed:** `{}` (`{}` executed `FIRE`, `{}` held `HOLD`)\n\
@@ -506,10 +538,8 @@ fn extract_wire_rtt_ms(raw: &str) -> f64 {
 fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
     let _ = fs::create_dir_all("logs");
     let base_req_file = "logs/base_rpc_req.json";
-    if !std::path::Path::new(base_req_file).exists() {
-        let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5}]"#;
-        let _ = fs::write(base_req_file, rpc_payload);
-    }
+    let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x3d5d143381916280ff91407febeb52f2b60f33cf","data":"0x3850c7bd"},"latest"],"id":6},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7f670f78b17dec44d5ef68a48740b6f8849cc2e6","data":"0x0902f1ac"},"latest"],"id":7},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6cdcb1c4a4d1c3c6d054b27ac5b77e89eafb971d","data":"0x0902f1ac"},"latest"],"id":8}]"#;
+    let _ = fs::write(base_req_file, rpc_payload);
 
     let arb_req_file = "logs/arb_rpc_req.json";
     if !std::path::Path::new(arb_req_file).exists() {
@@ -776,6 +806,81 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                         ask_price: aero_price * 1.00001,
                         ask_qty: 75.0,
                     });
+                }
+            }
+        }
+    }
+
+    // Parse id=6 (Base Mainnet UniV3 WETH/AERO 30-bps pool 0x3d5d...33cf)
+    if let Some(hex) = extract_rpc_result(resp, 6) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let aero_per_weth = ratio * ratio; // 18 decimals / 18 decimals
+                if aero_per_weth > 10.0 && aero_per_weth < 100_000.0 {
+                    let weth_per_aero = 1.0 / aero_per_weth;
+                    out.push(LiveBookTicker {
+                        venue: VenueId::BaseUniV3,
+                        base: CurrencyId::AERO,
+                        quote: CurrencyId::WETH,
+                        bid_price: weth_per_aero * 0.99999,
+                        bid_qty: 150_000.0,
+                        ask_price: weth_per_aero * 1.00001,
+                        ask_qty: 150_000.0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Parse id=7 (Aerodrome V2 WETH/AERO volatile pool 0x7f67...c2e6 getReserves)
+    if let Some(hex) = extract_rpc_result(resp, 7) {
+        if hex.len() >= 130 {
+            if let (Ok(r0), Ok(r1)) = (
+                u128::from_str_radix(&hex[2..66], 16),
+                u128::from_str_radix(&hex[66..130], 16),
+            ) {
+                if r0 > 0 && r1 > 0 {
+                    let aero_per_weth = (r1 as f64) / (r0 as f64);
+                    let weth_per_aero = 1.0 / aero_per_weth;
+                    if aero_per_weth > 10.0 && aero_per_weth < 100_000.0 {
+                        out.push(LiveBookTicker {
+                            venue: VenueId::BaseAerodromeVolatile,
+                            base: CurrencyId::AERO,
+                            quote: CurrencyId::WETH,
+                            bid_price: weth_per_aero * 0.99999,
+                            bid_qty: 250_000.0,
+                            ask_price: weth_per_aero * 1.00001,
+                            ask_qty: 250_000.0,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Parse id=8 (Aerodrome V2 USDC/AERO volatile pool 0x6cdc...971d getReserves)
+    if let Some(hex) = extract_rpc_result(resp, 8) {
+        if hex.len() >= 130 {
+            if let (Ok(r0), Ok(r1)) = (
+                u128::from_str_radix(&hex[2..66], 16),
+                u128::from_str_radix(&hex[66..130], 16),
+            ) {
+                if r0 > 0 && r1 > 0 {
+                    let usdc_val = (r0 as f64) / 1e6;
+                    let aero_val = (r1 as f64) / 1e18;
+                    let usdc_per_aero = usdc_val / aero_val;
+                    if usdc_per_aero > 0.01 && usdc_per_aero < 100.0 {
+                        out.push(LiveBookTicker {
+                            venue: VenueId::BaseAerodromeVolatile,
+                            base: CurrencyId::AERO,
+                            quote: CurrencyId::USDC,
+                            bid_price: usdc_per_aero * 0.99999,
+                            bid_qty: 300_000.0,
+                            ask_price: usdc_per_aero * 1.00001,
+                            ask_qty: 300_000.0,
+                        });
+                    }
                 }
             }
         }
