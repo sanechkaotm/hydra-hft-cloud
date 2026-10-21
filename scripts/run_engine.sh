@@ -21,7 +21,7 @@ if [ -f ".env" ]; then
 fi
 
 # Ensure python requirements
-pip install -q eth-account python-dotenv web3 2>/dev/null || pip3 install -q eth-account python-dotenv web3 2>/dev/null || true
+pip install -q eth-account python-dotenv web3 requests websockets 2>/dev/null || pip3 install -q eth-account python-dotenv web3 requests websockets 2>/dev/null || true
 
 # Determine execution mode
 if [ -n "${HYDRA_HOT_WALLET_PRIVKEY:-}" ] && [ -n "${HYDRA_EXECUTOR_CONTRACT:-}" ]; then
@@ -33,7 +33,13 @@ if [ -n "${HYDRA_HOT_WALLET_PRIVKEY:-}" ] && [ -n "${HYDRA_EXECUTOR_CONTRACT:-}"
         python3 scripts/live_broadcaster.py > logs/live_broadcaster.log 2>&1 &
     fi
 
-    # 2. Start Telegram alert bot if not running
+    # 2. Start WebSocket Event Streamer (UDP 8766 reactive wake-up) if not running
+    if ! pgrep -f "ws_listener.py" > /dev/null 2>&1; then
+        echo "[RUNNER] Launching Real-Time Base WebSocket Event Streamer..."
+        python3 scripts/ws_listener.py > logs/ws_listener.log 2>&1 &
+    fi
+
+    # 3. Start Telegram alert bot if not running
     if ! pgrep -f "telegram_bot.py" > /dev/null 2>&1; then
         echo "[RUNNER] Launching Telegram Alert Bot..."
         python3 scripts/telegram_bot.py > logs/telegram_bot.log 2>&1 &

@@ -28,6 +28,7 @@ fi
 echo "[1/5] Stopping any existing Hydra processes..."
 pkill -f "hydra-node" 2>/dev/null || true
 pkill -f "live_broadcaster.py" 2>/dev/null || true
+pkill -f "ws_listener.py" 2>/dev/null || true
 pkill -f "telegram_bot.py" 2>/dev/null || true
 pkill -f "web_dashboard.py" 2>/dev/null || true
 sleep 1
@@ -54,7 +55,12 @@ nohup python3 scripts/live_broadcaster.py > logs/live_broadcaster.log 2>&1 &
 echo $! > logs/live_broadcaster.pid
 echo " -> Broadcaster active (PID: $(cat logs/live_broadcaster.pid))"
 
-# 6. Start Telegram Bot
+# 6. Start WebSocket Event Streamer (UDP 8766 reactive block trigger)
+echo " Starting Base WebSocket Event Streamer..."
+nohup python3 scripts/ws_listener.py > logs/ws_listener.log 2>&1 &
+echo $! > logs/ws_listener.pid
+
+# 7. Start Telegram Bot
 echo " Starting Telegram alert bot..."
 nohup python3 scripts/telegram_bot.py > logs/telegram_bot.log 2>&1 &
 echo $! > logs/telegram_bot.pid

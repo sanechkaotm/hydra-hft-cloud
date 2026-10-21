@@ -14,6 +14,7 @@ import json
 import socket
 import urllib.request
 import requests
+import concurrent.futures
 from dotenv import load_dotenv
 from eth_account import Account
 
@@ -28,8 +29,9 @@ LIVE_LOG_FILE = os.path.join("logs", "live_onchain_trades.jsonl")
 
 BASE_RPCS = [
     "https://mainnet.base.org",          # Primary: Official Coinbase Sequencer endpoint
-    "https://base-rpc.publicnode.com",   # Backup 1
-    "https://base.llamarpc.com"          # Backup 2
+    "https://base-rpc.publicnode.com",   # Backup 1: Allnodes high-throughput
+    "https://base.drpc.org",             # Backup 2: Decentralized DRPC
+    "https://base.llamarpc.com"          # Backup 3: LlamaRPC
 ]
 
 # Strict Anomaly Guardrail Limits
@@ -51,9 +53,13 @@ class AnomalyGuardian:
         self.is_halted = False
         self.halt_reason = None
         
+        # Sub-millisecond in-memory nonce tracker
+        self.cached_nonce = None
+        self.nonce_last_synced = 0
+        
         # Persistent HTTP Keep-Alive session for sub-millisecond RPC round-trips
         self.session = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=1)
+        adapter = requests.adapters.HTTPAdapter(pool_connections=15, pool_maxsize=30, max_retries=1)
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
         self.session.headers.update({"Content-Type": "application/json", "User-Agent": "Hydra-Live/1.0"})
@@ -128,6 +134,50 @@ class AnomalyGuardian:
             return False, f"{err_msg} (data: {err_data})"
         return True, res
 
+    def get_next_nonce(self):
+        now = time.time()
+        if self.cached_nonce is None or (now - self.nonce_last_synced > 30):
+            ok, nonce_hex = self.rpc_request("eth_getTransactionCount", [self.wallet_addr, "pending"])
+            if ok:
+                self.cached_nonce = int(nonce_hex, 16)
+                self.nonce_last_synced = now
+            else:
+                return None
+        nonce = self.cached_nonce
+        self.cached_nonce += 1
+        return nonce
+
+    def parallel_broadcast_race(self, raw_hex):
+        """Concurrent Multi-Route Racing across all Base endpoints. Fastest packet wins inclusion."""
+        winner_tx = None
+        winner_rpc = None
+        
+        def _send(rpc_url):
+            payload = {"jsonrpc": "2.0", "method": "eth_sendRawTransaction", "params": [raw_hex], "id": 1}
+            try:
+                res = self.session.post(rpc_url, json=payload, timeout=2.5)
+                data = res.json()
+                if "result" in data and str(data["result"]).startswith("0x"):
+                    return rpc_url, data["result"]
+                elif "error" in data:
+                    msg = str(data["error"].get("message", "")).lower()
+                    if "already known" in msg or "transaction underpriced" in msg or "nonce too low" in msg:
+                        return rpc_url, "ALREADY_ACCEPTED"
+            except Exception:
+                pass
+            return rpc_url, None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(BASE_RPCS)) as executor:
+            futures = [executor.submit(_send, rpc) for rpc in BASE_RPCS]
+            for f in concurrent.futures.as_completed(futures):
+                rpc_used, result = f.result()
+                if result:
+                    winner_tx = result
+                    winner_rpc = rpc_used
+                    break
+
+        return winner_tx, winner_rpc
+
     def execute_and_broadcast(self, cycle_info):
         if self.is_halted:
             return False, f"System halted: {self.halt_reason}"
@@ -136,9 +186,15 @@ class AnomalyGuardian:
         path = cycle_info.get("path", "Unknown Path")
         route = cycle_info.get("route", "Unknown Route")
         net_profit_eur = cycle_info.get("net_profit_eur", 0.0)
-        tip_wei = int(cycle_info.get("priority_tip_wei", 10_000_000)) # Default 0.01 Gwei
 
-        # 1. Preflight safety check
+        # 1. Dynamic Sequencer Bribe (Aggressively outbids competitors: 0.05 Gwei floor + 18% profit share)
+        min_floor_tip = 50_000_000  # 0.05 Gwei floor (10x higher than 0.005 Gwei baseline)
+        eth_eur = 2500.0
+        profit_bribe_wei = int(((net_profit_eur * 0.18) / eth_eur) * 1e18 / 380_000)
+        tip_wei = max(min_floor_tip, profit_bribe_wei)
+        tip_wei = min(tip_wei, 2_500_000_000) # 2.5 Gwei max safety ceiling
+
+        # 2. Preflight safety check
         preflight_ok, preflight_data = self.check_preflight_anomaly()
         if not preflight_ok:
             self.trigger_emergency_halt(f"Pre-flight safety barrier tripped: {preflight_data}")
@@ -146,17 +202,16 @@ class AnomalyGuardian:
 
         gas_price_wei = preflight_data["gas_price_wei"]
 
-        # 2. On-chain EVM simulation (eth_call)
+        # 3. On-chain EVM simulation (eth_call) with persistent keep-alive socket
         sim_ok, sim_result = self.simulate_call(calldata)
         if not sim_ok:
             self.log(f"[SIMULATION PROTECTED] Cycle rejected by EVM preflight: {sim_result}. 0 gas spent.")
             return False, f"Simulation reverted: {sim_result}"
 
-        # 3. Nonce & Gas parameters
-        ok, nonce_hex = self.rpc_request("eth_getTransactionCount", [self.wallet_addr, "pending"])
-        if not ok:
-            return False, "Failed to get nonce"
-        nonce = int(nonce_hex, 16)
+        # 4. Instant In-Memory Nonce Allocation (0 ms network overhead)
+        nonce = self.get_next_nonce()
+        if nonce is None:
+            return False, "Failed to allocate nonce"
 
         gas_limit = 380_000
         max_fee_per_gas = gas_price_wei + tip_wei
@@ -172,19 +227,25 @@ class AnomalyGuardian:
             "chainId": 8453
         }
 
-        # 4. Sign and broadcast
-        self.log(f"[*] Preflight passed! Signing real transaction for [{route}] {path} (+€{net_profit_eur:.4f})...")
+        # 5. Native Keystore Signing & Multi-Route Parallel Racing
+        tip_gwei = tip_wei / 1e9
+        self.log(f"[*] Preflight passed! Bribing Sequencer {tip_gwei:.3f} Gwei for #1 spot (+€{net_profit_eur:.4f})...")
         signed = self.acct.sign_transaction(tx)
         raw_hex = "0x" + signed.raw_transaction.hex()
 
-        ok, broadcast_res = self.rpc_request("eth_sendRawTransaction", [raw_hex])
-        if not ok:
-            err_msg = broadcast_res.get("message", "Broadcast failed")
-            self.log(f"[!] Broadcast failed: {err_msg}")
-            return False, err_msg
+        # Fire simultaneously across all RPC channels (fastest route wins)
+        tx_hash, winning_rpc = self.parallel_broadcast_race(raw_hex)
+        if not tx_hash:
+            self.cached_nonce = None # Reset nonce on network broadcast failure
+            self.log(f"[!] Parallel broadcast failed across all routes")
+            return False, "Broadcast race failed"
 
-        tx_hash = broadcast_res
-        self.log(f"[+] BROADCAST SUCCESS! TxHash: {tx_hash}")
+        # If winner was already accepted or standard tx hash
+        if tx_hash == "ALREADY_ACCEPTED":
+            from eth_utils import keccak
+            tx_hash = "0x" + keccak(hexstr=raw_hex).hex()
+
+        self.log(f"[+] BROADCAST RACE WON via {winning_rpc}! TxHash: {tx_hash}")
         basescan_url = f"https://basescan.org/tx/{tx_hash}"
 
         # 5. Await on-chain receipt (Base 2s block time)
