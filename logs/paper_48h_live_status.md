@@ -5,8 +5,8 @@
 - **Current Live Equity:** `€287.4783` (**+91.652%**)
 - **Cumulative Net PnL:** `+€137.4783` (CEX/Mesh: `+€0.0000`, Base L2 DEX Atomic: `+€137.4783`)
 - **Live Polls Completed:** `25` (`2` executed `FIRE`, `24` held `HOLD`)
-- **Latest Network Poll RTT:** `23.6 ms` | **Internal SPFA Solver Time:** `63.88 µs`
-- **Top Active Arbitrage Ring:** `[AERO/UNI3] WETH->BRETT->WETH` (`+58.09 bps` net after fees)
+- **Latest Network Poll RTT:** `56.6 ms` | **Internal SPFA Solver Time:** `47.76 µs`
+- **Top Active Arbitrage Ring:** `[AERO/UNI3] WETH->BRETT->WETH` (`+251.87 bps` net after fees)
 - **Step 1 (Hyper-Volatile Base):** `BRETT` & `DEGEN` active with 100/30 bps fee schedules
 - **Step 2 (Multicall3 State Sync):** Single-shot atomic block-level query (`0xca11...ca11`)
 - **Step 3 (Sequencer Bribe):** Dynamic 15% profit sharing for #1 block spot (0.001–10.0 Gwei)
