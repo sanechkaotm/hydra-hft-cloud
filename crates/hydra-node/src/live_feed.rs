@@ -562,7 +562,8 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
         }
 
         if poll_idx < total_polls {
-            thread::sleep(Duration::from_millis(1200));
+            // Synchronized with Base L2 2.0-second block generation cadence
+            thread::sleep(Duration::from_millis(1900));
         }
     }
 
@@ -854,11 +855,11 @@ fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
             fetch_url("https://api.kraken.com/0/public/Ticker?pair=EURUSD,EURGBP,EURCHF,EURJPY,GBPUSD,USDCHF,USDJPY,USDTZUSD,USDTEUR,USDCUSD,USDCEUR,XXBTZEUR,XXBTZUSD,XETHZEUR,XETHZUSD")
         });
         let h_base = s.spawn(|| {
-            Command::new(curl_bin())
+            let primary = Command::new(curl_bin())
                 .args([
                     "-s",
                     "--max-time",
-                    "4",
+                    "3",
                     "-w",
                     "\n__HYDRA_WIRE__:%{time_total}:%{time_appconnect}",
                     "-X",
@@ -872,7 +873,32 @@ fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
                 .output()
                 .ok()
                 .and_then(|o| String::from_utf8(o.stdout).ok())
-                .unwrap_or_default()
+                .unwrap_or_default();
+
+            if primary.contains("\"result\"") {
+                primary
+            } else {
+                // High-speed fallback to official Base sequencer node
+                Command::new(curl_bin())
+                    .args([
+                        "-s",
+                        "--max-time",
+                        "3",
+                        "-w",
+                        "\n__HYDRA_WIRE__:%{time_total}:%{time_appconnect}",
+                        "-X",
+                        "POST",
+                        "https://mainnet.base.org",
+                        "-H",
+                        "Content-Type: application/json",
+                        "--data-binary",
+                        "@logs/base_rpc_req.json",
+                    ])
+                    .output()
+                    .ok()
+                    .and_then(|o| String::from_utf8(o.stdout).ok())
+                    .unwrap_or_default()
+            }
         });
         let h_arb = s.spawn(|| {
             Command::new(curl_bin())

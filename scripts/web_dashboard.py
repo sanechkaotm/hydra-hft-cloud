@@ -153,6 +153,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }
     .tag-fire { background: rgba(16, 185, 129, 0.2); color: var(--green); border: 1px solid var(--green); }
     .tag-flash { background: rgba(56, 189, 248, 0.2); color: var(--accent); border: 1px solid var(--accent); font-weight: 700; }
+    .tag-echo { background: rgba(56, 189, 248, 0.12); color: var(--accent); }
+    .tag-breaker { background: rgba(239, 68, 68, 0.2); color: var(--red); border: 1px solid var(--red); font-weight: 700; }
     .tag-hold { background: rgba(148, 163, 184, 0.1); color: var(--text-muted); }
     .tag-non-atomic { background: rgba(245, 158, 11, 0.15); color: var(--yellow); }
     .refresh-note { font-size: 12px; color: var(--text-muted); }
@@ -163,8 +165,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="logo-group">
       <h2>HYDRA-HFT v4.0</h2>
       <span class="badge-live"><div class="pulse"></div> 48-HR CLOUD VALIDATOR ACTIVE</span>
+      <span class="badge-shield" style="background: rgba(56, 189, 248, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">🛡️ ANTI-ECHO: ON</span>
+      <span class="badge-circuit" id="badge-cb" style="background: rgba(16, 185, 129, 0.15); color: var(--green); border: 1px solid var(--green); padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">⚡ CIRCUIT BREAKER: OK (€1.50/HR)</span>
+      <span class="badge-meme" style="background: rgba(168, 85, 247, 0.15); color: var(--purple); border: 1px solid var(--purple); padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600;">🔒 MEME CAP: €3,500</span>
     </div>
-    <div class="refresh-note">Auto-refreshing every 2.0s &bull; Server: AWS EC2 us-east-1</div>
+    <div class="refresh-note">Cadence: 2.0s Block-Aligned &bull; Server: AWS EC2 Frankfurt (c6i.xlarge)</div>
   </div>
 
   <div class="grid">
@@ -258,6 +263,22 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           if (data.status.rtt_ms) document.getElementById('val-rtt').innerText = data.status.rtt_ms.toFixed(1) + ' ms';
           if (data.status.best_net_bps !== undefined) document.getElementById('val-ring-bps').innerText = (data.status.best_net_bps >= 0 ? '+' : '') + data.status.best_net_bps.toFixed(2) + ' bps';
           if (data.status.best_path) document.getElementById('val-ring-path').innerText = `[${data.status.best_route || ''}] ${data.status.best_path}`;
+          if (data.status.circuit_breaker) {
+            const cbBadge = document.getElementById('badge-cb');
+            if (cbBadge) {
+              if (data.status.circuit_breaker.includes('TRIPPED')) {
+                cbBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+                cbBadge.style.color = 'var(--red)';
+                cbBadge.style.borderColor = 'var(--red)';
+                cbBadge.innerText = '🚨 CIRCUIT BREAKER: PAUSED (' + (data.status.hourly_gas || '') + ')';
+              } else {
+                cbBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+                cbBadge.style.color = 'var(--green)';
+                cbBadge.style.borderColor = 'var(--green)';
+                cbBadge.innerText = '⚡ CIRCUIT BREAKER: OK (' + (data.status.hourly_gas || '€0.00/€1.50') + ')';
+              }
+            }
+          }
         }
 
         if (data.ticks && data.ticks.length > 0) {
@@ -268,6 +289,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             let tagClass = 'tag-hold';
             if (t.action.includes('FIRE_FLASH')) tagClass = 'tag-flash';
             else if (t.action.includes('FIRE')) tagClass = 'tag-fire';
+            else if (t.action.includes('CIRCUIT_BREAKER')) tagClass = 'tag-breaker';
+            else if (t.action.includes('ECHO_COOLDOWN')) tagClass = 'tag-echo';
             else if (t.action.includes('NON_ATOMIC')) tagClass = 'tag-non-atomic';
 
             tr.innerHTML = `
@@ -360,6 +383,12 @@ def parse_status_md():
                             status["best_path"] = ring_raw
                     if len(parts) >= 4:
                         status["best_net_bps"] = float(parts[3].replace(" bps", ""))
+                elif "Circuit Breaker Status:" in line:
+                    parts = line.split("`")
+                    if len(parts) >= 2:
+                        status["circuit_breaker"] = parts[1]
+                    if len(parts) >= 4:
+                        status["hourly_gas"] = parts[3]
     except Exception as e:
         pass
     return status
