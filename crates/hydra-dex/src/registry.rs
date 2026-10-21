@@ -32,6 +32,12 @@ impl L2MainnetRegistry {
         hex_20(*b"0b3e328455c4059EEb9e3f84b5543F74E24e7E1b");
     pub const BASE_CBBTC: [u8; 20] =
         hex_20(*b"cbB7C0000aB88B473b1f5aFd9ef808440eed33Bf");
+    pub const BASE_BRETT: [u8; 20] =
+        hex_20(*b"532f27101965dd16442e59d40670faf5ebb142e4");
+    pub const BASE_DEGEN: [u8; 20] =
+        hex_20(*b"4ed4e862860bed51a9570b96d89af5e1b0efefed");
+    pub const BASE_MULTICALL3: [u8; 20] =
+        hex_20(*b"ca11bde05977b3631167028862be2a173976ca11");
 
     // =========================================================================
     // Arbitrum One (Chain ID: 42161)
@@ -65,6 +71,8 @@ impl L2MainnetRegistry {
             CurrencyId::AERO => Self::BASE_AERO,
             CurrencyId::VIRTUAL => Self::BASE_VIRTUAL,
             CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => Self::BASE_CBBTC,
+            CurrencyId::BRETT => Self::BASE_BRETT,
+            CurrencyId::DEGEN => Self::BASE_DEGEN,
             _ => Self::BASE_USDC,
         }
     }

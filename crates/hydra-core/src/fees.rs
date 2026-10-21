@@ -157,6 +157,38 @@ impl FeeEngine {
         {
             return 0.0030; // 30 bps Aerodrome V2 volatile cbBTC/WETH pool on Base (0x2578...2319)
         }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::BRETT) | (CurrencyId::BRETT, CurrencyId::WETH)
+            )
+        {
+            return 0.0100; // 100 bps Uniswap V3 WETH/BRETT pool on Base (0xba3f...46f7)
+        }
+        if matches!(venue, VenueId::BaseAerodromeVolatile)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::BRETT) | (CurrencyId::BRETT, CurrencyId::WETH)
+            )
+        {
+            return 0.0030; // 30 bps Aerodrome V2 volatile WETH/BRETT pool on Base (0x2143...0d5a)
+        }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::DEGEN) | (CurrencyId::DEGEN, CurrencyId::WETH)
+            )
+        {
+            return 0.0030; // 30 bps Uniswap V3 WETH/DEGEN pool on Base (0xc903...acaa)
+        }
+        if matches!(venue, VenueId::BaseAerodromeVolatile)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::DEGEN) | (CurrencyId::DEGEN, CurrencyId::WETH)
+            )
+        {
+            return 0.0030; // 30 bps Aerodrome V2 volatile WETH/DEGEN pool on Base (0x2c49...abf3)
+        }
         self.venue_fee_fraction(venue, custom_uni_v3_fee_pips)
     }
 

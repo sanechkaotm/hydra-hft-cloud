@@ -1,10 +1,16 @@
 pub mod amm_math;
+pub mod bribe;
+pub mod multicall;
+pub mod nonce;
 pub mod preflight;
 pub mod registry;
 pub mod state_sync;
 pub mod tx_builder;
 
 pub use amm_math::{ConstantProductMath, CurveStableSwapMath, UniV3Math};
+pub use bribe::DynamicBribeEngine;
+pub use multicall::Multicall3Builder;
+pub use nonce::LocalNonceTracker;
 pub use preflight::{PreflightSimulationResult, PreflightSimulator, SimulationError};
 pub use registry::L2MainnetRegistry;
 pub use state_sync::{L2StateSynchronizer, MAX_TRACKED_POOLS, OnChainPoolState};
