@@ -272,6 +272,7 @@ pub enum VenueId {
     ArbitrumUniV3 = 7,
     ArbitrumCurve = 8,
     ArbitrumCamelotV2 = 9,
+    BaseSushiV3 = 10,
 }
 
 impl VenueId {
@@ -293,6 +294,7 @@ impl VenueId {
             Self::ArbitrumUniV3 => "ArbUniV3",
             Self::ArbitrumCurve => "ArbCurve",
             Self::ArbitrumCamelotV2 => "ArbCamelotV2",
+            Self::BaseSushiV3 => "BaseSushiV3",
         }
     }
 }

@@ -185,7 +185,7 @@ impl FeeEngine {
                 effective_bps * 1e-4
             }
             VenueId::KrakenSpot => self.kraken_taker_bps * 1e-4,
-            VenueId::BaseUniV3 | VenueId::ArbitrumUniV3 => {
+            VenueId::BaseUniV3 | VenueId::ArbitrumUniV3 | VenueId::BaseSushiV3 => {
                 let pips = custom_uni_v3_fee_pips.unwrap_or(500); // default 5 bps (500 pips)
                 (pips as f64) * 1e-6
             }
