@@ -32,9 +32,14 @@ pkill -f "telegram_bot.py" 2>/dev/null || true
 pkill -f "web_dashboard.py" 2>/dev/null || true
 sleep 1
 
-# 3. Ensure python dependencies
-echo "[2/5] Checking python dependencies..."
-pip install -q eth-account python-dotenv web3 2>/dev/null || pip3 install -q eth-account python-dotenv web3 2>/dev/null || true
+# 3. Ensure python dependencies & apply HFT network sysctl tuning
+echo "[2/5] Checking python dependencies & optimizing network buffers..."
+pip install -q eth-account python-dotenv web3 requests 2>/dev/null || pip3 install -q eth-account python-dotenv web3 requests 2>/dev/null || true
+
+# Linux kernel network stack tuning for sub-millisecond socket throughput
+sudo sysctl -w net.core.rmem_max=16777216 2>/dev/null || true
+sudo sysctl -w net.core.wmem_max=16777216 2>/dev/null || true
+sudo sysctl -w net.ipv4.tcp_fastopen=3 2>/dev/null || true
 
 # 4. Compile release binary if needed
 echo "[3/5] Verifying Rust HFT release binary..."

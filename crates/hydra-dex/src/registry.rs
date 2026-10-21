@@ -36,6 +36,10 @@ impl L2MainnetRegistry {
         hex_20(*b"532f27101965dd16442e59d40670faf5ebb142e4");
     pub const BASE_DEGEN: [u8; 20] =
         hex_20(*b"4ed4e862860bed51a9570b96d89af5e1b0efefed");
+    pub const BASE_TOSHI: [u8; 20] =
+        hex_20(*b"AC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4");
+    pub const BASE_USDBC: [u8; 20] =
+        hex_20(*b"d9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA");
     pub const BASE_MULTICALL3: [u8; 20] =
         hex_20(*b"ca11bde05977b3631167028862be2a173976ca11");
 
@@ -73,6 +77,8 @@ impl L2MainnetRegistry {
             CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => Self::BASE_CBBTC,
             CurrencyId::BRETT => Self::BASE_BRETT,
             CurrencyId::DEGEN => Self::BASE_DEGEN,
+            CurrencyId::TOSHI => Self::BASE_TOSHI,
+            CurrencyId::USDBC => Self::BASE_USDBC,
             _ => Self::BASE_USDC,
         }
     }

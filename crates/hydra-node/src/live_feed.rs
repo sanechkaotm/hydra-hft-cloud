@@ -153,6 +153,8 @@ fn token_price_in_eur(token: CurrencyId) -> f64 {
         CurrencyId::AERO => 1.15,
         CurrencyId::BRETT => 0.08,
         CurrencyId::DEGEN => 0.007,
+        CurrencyId::TOSHI => 0.00035,
+        CurrencyId::USDBC => 0.92,
         CurrencyId::USDC | CurrencyId::USDT => 0.92,
         CurrencyId::EUR | CurrencyId::EURC => 1.0,
         _ => 1.0,
@@ -337,10 +339,10 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         amm_hops[h] = AmmPoolHop::new(r_in, r_out, edge.fee_fraction);
                     }
 
-                    // Safety Improvement 1: Bounded Meme FlashLoan Cap (€350 for BRETT/DEGEN, €15,000 for fundamentals)
+                    // Safety Improvement 1: Bounded Meme FlashLoan Cap (€350 for BRETT/DEGEN/TOSHI, €15,000 for fundamentals)
                     let is_meme_cycle = (0..hops).any(|h| {
                         let n = best.nodes[h];
-                        n == CurrencyId::BRETT || n == CurrencyId::DEGEN
+                        n == CurrencyId::BRETT || n == CurrencyId::DEGEN || n == CurrencyId::TOSHI
                     });
                     let max_flash_credit_eur = if is_meme_cycle { 350.0 } else { 15_000.0 };
 
@@ -441,8 +443,12 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                                         || edge.to == CurrencyId::AERO
                                         || edge.from == CurrencyId::VIRTUAL
                                         || edge.to == CurrencyId::VIRTUAL
+                                        || edge.from == CurrencyId::TOSHI
+                                        || edge.to == CurrencyId::TOSHI
                                     {
                                         3000
+                                    } else if edge.from == CurrencyId::USDBC || edge.to == CurrencyId::USDBC {
+                                        500
                                     } else if edge.from == CurrencyId::ETH || edge.to == CurrencyId::ETH {
                                         100
                                     } else if edge.from == CurrencyId::CBBTC || edge.to == CurrencyId::CBBTC {
@@ -472,7 +478,7 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         let mut cd_buf = [0u8; 1536];
                         let loan_token = L2MainnetRegistry::base_token_address(best.nodes[0]);
                         let loan_amount_wei = match best.nodes[0] {
-                            CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN => {
+                            CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN | CurrencyId::TOSHI => {
                                 ((trade_notional / p_eur) * 1e18) as u128
                             }
                             CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => {
@@ -483,7 +489,7 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                             }
                         };
                         let min_net_profit_wei = match best.nodes[0] {
-                            CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN => {
+                            CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN | CurrencyId::TOSHI => {
                                 (((cfg.min_dex_profit_eur / p_eur) * 1e18).max(1.0)) as u128
                             }
                             CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => {

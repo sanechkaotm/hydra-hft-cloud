@@ -13,6 +13,7 @@ import time
 import json
 import socket
 import urllib.request
+import requests
 from dotenv import load_dotenv
 from eth_account import Account
 
@@ -50,6 +51,13 @@ class AnomalyGuardian:
         self.is_halted = False
         self.halt_reason = None
         
+        # Persistent HTTP Keep-Alive session for sub-millisecond RPC round-trips
+        self.session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=1)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+        self.session.headers.update({"Content-Type": "application/json", "User-Agent": "Hydra-Live/1.0"})
+        
     def log(self, msg):
         ts = time.strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{ts}] [LIVE GUARDIAN] {msg}", flush=True)
@@ -62,28 +70,26 @@ class AnomalyGuardian:
                 chat_ids = [line.strip() for line in f if line.strip().isdigit()]
             for cid in chat_ids:
                 url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
-                payload = json.dumps({
+                payload = {
                     "chat_id": int(cid),
                     "text": text,
                     "parse_mode": "Markdown",
                     "disable_web_page_preview": True
-                }).encode("utf-8")
-                req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"})
-                urllib.request.urlopen(req, timeout=4)
+                }
+                self.session.post(url, json=payload, timeout=4)
         except Exception as e:
             self.log(f"TG notification warning: {e}")
 
-    def rpc_request(self, method, params, timeout=5):
-        payload = json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": 1}).encode("utf-8")
+    def rpc_request(self, method, params, timeout=4):
+        payload = {"jsonrpc": "2.0", "method": method, "params": params, "id": 1}
         for rpc in BASE_RPCS:
-            req = urllib.request.Request(rpc, data=payload, headers={"Content-Type": "application/json", "User-Agent": "Hydra-Live/1.0"})
             try:
-                with urllib.request.urlopen(req, timeout=timeout) as res:
-                    data = json.loads(res.read().decode("utf-8"))
-                    if "error" in data:
-                        return False, data["error"]
-                    return True, data.get("result")
-            except Exception as e:
+                res = self.session.post(rpc, json=payload, timeout=timeout)
+                data = res.json()
+                if "error" in data:
+                    return False, data["error"]
+                return True, data.get("result")
+            except Exception:
                 continue
         return False, {"message": "All Base RPC endpoints unreachable"}
 

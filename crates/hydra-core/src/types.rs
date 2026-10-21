@@ -54,10 +54,12 @@ pub enum CurrencyId {
     CBBTC = 30,
     BRETT = 31,
     DEGEN = 32,
+    TOSHI = 33,
+    USDBC = 34,
 }
 
 impl CurrencyId {
-    pub const ALL: [CurrencyId; 33] = [
+    pub const ALL: [CurrencyId; 35] = [
         Self::EUR,
         Self::USD,
         Self::GBP,
@@ -91,6 +93,8 @@ impl CurrencyId {
         Self::CBBTC,
         Self::BRETT,
         Self::DEGEN,
+        Self::TOSHI,
+        Self::USDBC,
     ];
 
     /// Base capital anchor currencies (`EUR`, `USDC`, `USDT`, `EURC`, `WETH`).
@@ -156,6 +160,8 @@ impl CurrencyId {
             Self::CBBTC => "cbBTC",
             Self::BRETT => "BRETT",
             Self::DEGEN => "DEGEN",
+            Self::TOSHI => "TOSHI",
+            Self::USDBC => "USDbC",
         }
     }
 
@@ -194,6 +200,8 @@ impl CurrencyId {
             "CBBTC" | "cbBTC" | "CBBtc" => Some(Self::CBBTC),
             "BRETT" | "Brett" => Some(Self::BRETT),
             "DEGEN" | "Degen" => Some(Self::DEGEN),
+            "TOSHI" | "Toshi" => Some(Self::TOSHI),
+            "USDBC" | "USDbC" | "usdbc" => Some(Self::USDBC),
             _ => None,
         }
     }
