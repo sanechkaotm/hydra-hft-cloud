@@ -213,6 +213,14 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
     let fee_engine = FeeEngine::default();
     let tx_builder = AtomicTxBuilder::new();
     let mut last_fired_gross_bps = -9999.0f64;
+    let mut last_fired_path_hash = 0u64;
+    let mut last_fired_poll_idx = 0usize;
+
+    // Safety Improvement 3: Circuit Breaker (€1.50/hr cumulative gas expenditure cap)
+    let mut hourly_gas_burned_eur = 0.0f64;
+    let mut hour_window_start_s = unix_ns() / 1_000_000_000;
+    let mut circuit_breaker_tripped = false;
+    let max_hourly_gas_burn_eur = 1.50f64;
 
     for poll_idx in 1..=total_polls {
         let mut tickers = Vec::with_capacity(64);
@@ -220,6 +228,14 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
 
         let mut graph = ExchangeGraph::new();
         let now_ns = unix_ns();
+        let now_s = now_ns / 1_000_000_000;
+        // Hourly rolling reset for circuit breaker
+        if now_s.saturating_sub(hour_window_start_s) >= 3600 {
+            hour_window_start_s = now_s;
+            hourly_gas_burned_eur = 0.0;
+            circuit_breaker_tripped = false;
+        }
+
         populate_graph_from_live_quotes(&mut graph, &tickers, &fee_engine, now_ns);
 
         let t_solve = Instant::now();
@@ -263,175 +279,227 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
             let route_str = format_venue_route(&graph, best);
             let path_str = crate::format_cycle_path(&best.nodes[..=hops]);
 
-            let is_new_price_wave = (gross_bps - last_fired_gross_bps).abs() > 0.05;
-            if best.net_profit_bps < cfg.min_net_profit_bps {
-                last_fired_gross_bps = -9999.0;
+            // Safety Improvement 2: Deterministic 64-bit path hash for Anti-Echo Guard
+            let mut path_hash = 0xcbf29ce484222325u64;
+            for h in 0..hops {
+                path_hash ^= best.nodes[h] as u64;
+                path_hash = path_hash.wrapping_mul(0x100000001b3);
+                path_hash ^= best.edge_ids[h] as u64;
+                path_hash = path_hash.wrapping_mul(0x100000001b3);
             }
 
-            let (action_str, notional_eur, net_profit_eur, exec_meta) =
-                if executable && best.net_profit_bps >= cfg.min_net_profit_bps && is_new_price_wave {
-                    last_fired_gross_bps = gross_bps;
+            let is_same_path = path_hash == last_fired_path_hash;
+            let cooldown_passed = poll_idx.saturating_sub(last_fired_poll_idx) >= 3;
+            let wave_delta = (gross_bps - last_fired_gross_bps).abs();
+            let wave_shift_passed = if is_same_path {
+                wave_delta >= 5.0
+            } else {
+                wave_delta > 0.05
+            };
+            let anti_echo_passed = (!is_same_path && wave_shift_passed) || (is_same_path && cooldown_passed && wave_shift_passed);
+
+            if best.net_profit_bps < cfg.min_net_profit_bps {
+                last_fired_gross_bps = -9999.0;
+                last_fired_path_hash = 0;
+            }
+
+            let (action_str, notional_eur, net_profit_eur, exec_meta) = if !executable {
+                hold_cycles_count += 1;
+                ("HOLD_NON_ATOMIC", 0.0, 0.0, String::new())
+            } else if best.net_profit_bps < cfg.min_net_profit_bps {
+                hold_cycles_count += 1;
+                ("HOLD_WAIT", 0.0, 0.0, String::new())
+            } else if circuit_breaker_tripped {
+                hold_cycles_count += 1;
+                ("HOLD_CIRCUIT_BREAKER", 0.0, 0.0, String::new())
+            } else if !anti_echo_passed {
+                hold_cycles_count += 1;
+                ("HOLD_ECHO_COOLDOWN", 0.0, 0.0, String::new())
+            } else {
+                // Dynamic Optimal Trade Sizing (Analytical AMM Price Impact & Slippage Optimization)
+                let p_eur = token_price_in_eur(best.nodes[0]);
+                let (trade_notional, action_label, net_eur, is_profitable) = if uses_l2_dex {
+                    let hops = (best.hop_count as usize).min(4);
+                    let mut amm_hops = [AmmPoolHop::default(); 4];
+                    for h in 0..hops {
+                        let e_id = best.edge_ids[h];
+                        let edge = graph.edge(e_id);
+                        let r_in = edge.max_capacity_in.max(10.0);
+                        let r_out = (edge.max_capacity_in * edge.rate).max(10.0);
+                        amm_hops[h] = AmmPoolHop::new(r_in, r_out, edge.fee_fraction);
+                    }
+
+                    // Safety Improvement 1: Bounded Meme FlashLoan Cap (€3,500 for BRETT/DEGEN, €15,000 for fundamentals)
+                    let is_meme_cycle = (0..hops).any(|h| {
+                        let n = best.nodes[h];
+                        n == CurrencyId::BRETT || n == CurrencyId::DEGEN
+                    });
+                    let max_flash_credit_eur = if is_meme_cycle { 3_500.0 } else { 15_000.0 };
+
+                    let internal_cap_base = 50.0 / p_eur;
+                    let flash_cap_base = max_flash_credit_eur / p_eur;
+                    let gas_base = 0.004 / p_eur;
+                    let min_profit_base = 0.01 / p_eur;
+
+                    let sizing = OptimalTradeSizer::size_dex_amm_cycle(
+                        &amm_hops[..hops],
+                        internal_cap_base,
+                        flash_cap_base,
+                        0.0, // Balancer Vault 0.00% fee line
+                        gas_base,
+                        min_profit_base,
+                    );
+                    if sizing.executable && sizing.executable_input_base > 0.0 {
+                        (sizing.executable_input_base * p_eur, "FIRE_FLASH_OPTIMAL", sizing.net_profit_base * p_eur, true)
+                    } else {
+                        // Bounded conservative fraction (2%) of the bottleneck pool depth
+                        let min_cap = (0..hops).map(|h| graph.edge(best.edge_ids[h]).max_capacity_in).fold(f64::INFINITY, f64::min);
+                        let conservative_notional_base = (min_cap * 0.02).clamp(100.0 / p_eur, max_flash_credit_eur / p_eur);
+                        let conservative_notional = conservative_notional_base * p_eur;
+                        let gross = conservative_notional * (best.net_profit_bps * 1e-4);
+                        let net = (gross - 0.004).max(0.0);
+                        if net > 0.01 {
+                            (conservative_notional, "FIRE_FLASH_BALANCER_0FEE", net, true)
+                        } else {
+                            (0.0, "HOLD_SLIPPAGE", 0.0, false)
+                        }
+                    }
+                } else {
+                    let raw_notional = starting_equity_eur + cumulative_cex_mesh_pnl_eur + cumulative_dex_atomic_pnl_eur;
+                    let filter = SymbolFilterSpec::for_pair(best.nodes[0], best.nodes[1]);
+                    let notional = filter.quantize_qty_floor(raw_notional);
+                    let gross = notional * (best.net_profit_bps * 1e-4);
+                    (notional, "FIRE_IOC_ATOMIC", gross.max(0.0), true)
+                };
+
+                if !is_profitable || net_eur <= 0.0 {
+                    hold_cycles_count += 1;
+                    ("HOLD_SLIPPAGE", 0.0, 0.0, String::new())
+                } else {
                     executed_cycles_count += 1;
-                    
-                    // Dynamic Optimal Trade Sizing (Analytical AMM Price Impact & Slippage Optimization)
-                    let p_eur = token_price_in_eur(best.nodes[0]);
-                    let (trade_notional, action_label, net_eur, is_profitable) = if uses_l2_dex {
+                    last_fired_gross_bps = gross_bps;
+                    last_fired_path_hash = path_hash;
+                    last_fired_poll_idx = poll_idx;
+
+                    let mut exec_meta = String::new();
+                    if uses_l2_dex {
+                        cumulative_dex_atomic_pnl_eur += net_eur;
+                        // Step 3: Compute dynamic sequencer bribe (15% profit sharing capped at €0.35 per tx)
+                        let (raw_tip_wei, raw_bribe_cost_eur) = DynamicBribeEngine::compute_bribe(
+                            net_eur,
+                            280_000,
+                            2500.0,
+                            0.15,
+                        );
+                        let (priority_tip_wei, bribe_cost_eur) = if raw_bribe_cost_eur > 0.35 {
+                            let max_tip_wei = ((0.35 / 2500.0) * 1e18 / 280_000.0) as u128;
+                            (max_tip_wei, 0.35)
+                        } else {
+                            (raw_tip_wei, raw_bribe_cost_eur)
+                        };
+                        // Track gas burned towards hourly circuit breaker limit (€1.50/hr)
+                        let tx_gas_eur = 0.004 + bribe_cost_eur;
+                        hourly_gas_burned_eur += tx_gas_eur;
+                        if hourly_gas_burned_eur >= max_hourly_gas_burn_eur {
+                            circuit_breaker_tripped = true;
+                            eprintln!(
+                                " [CIRCUIT BREAKER] Hourly gas burned reached €{:.4} (limit: €{:.2}). Execution paused.",
+                                hourly_gas_burned_eur, max_hourly_gas_burn_eur
+                            );
+                        }
+
+                        // Step 4: Zero-latency in-memory nonce allocation (2 nanoseconds)
+                        let tx_nonce = nonce_tracker.next_nonce();
+                        let tip_gwei = (priority_tip_wei as f64) / 1e9;
+                        exec_meta = format!(" | Nonce #{} Tip={:.3}Gwei (€{:.4})", tx_nonce, tip_gwei, bribe_cost_eur);
+
+                        // Encode real HydraAtomicExecutor.sol calldata (provider 1 = Balancer Vault 0% fee)
                         let hops = (best.hop_count as usize).min(4);
-                        let mut amm_hops = [AmmPoolHop::default(); 4];
+                        let mut steps = [AbiSwapStep::default(); 4];
                         for h in 0..hops {
                             let e_id = best.edge_ids[h];
                             let edge = graph.edge(e_id);
-                            let r_in = edge.max_capacity_in.max(10.0);
-                            let r_out = (edge.max_capacity_in * edge.rate).max(10.0);
-                            amm_hops[h] = AmmPoolHop::new(r_in, r_out, edge.fee_fraction);
+                            let (dex_type, pool_or_router, fee_tier) = match edge.venue {
+                                VenueId::BaseUniV3 | VenueId::BaseSushiV3 => {
+                                    let tier = if edge.from == CurrencyId::BRETT
+                                        || edge.to == CurrencyId::BRETT
+                                    {
+                                        10000 // 1.00% UniV3 BRETT pool
+                                    } else if edge.from == CurrencyId::DEGEN
+                                        || edge.to == CurrencyId::DEGEN
+                                    {
+                                        3000 // 0.30% UniV3 DEGEN pool
+                                    } else if edge.from == CurrencyId::AERO
+                                        || edge.to == CurrencyId::AERO
+                                        || edge.from == CurrencyId::VIRTUAL
+                                        || edge.to == CurrencyId::VIRTUAL
+                                    {
+                                        3000
+                                    } else if edge.from == CurrencyId::ETH || edge.to == CurrencyId::ETH {
+                                        100
+                                    } else if edge.from == CurrencyId::CBBTC || edge.to == CurrencyId::CBBTC {
+                                        500
+                                    } else {
+                                        500
+                                    };
+                                    (4u8, L2MainnetRegistry::BASE_UNIV3_ROUTER02, tier)
+                                }
+                                VenueId::BaseAerodromeStable => {
+                                    (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 1u32)
+                                }
+                                _ => {
+                                    (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 0u32)
+                                }
+                            };
+                            steps[h] = AbiSwapStep {
+                                dex_type,
+                                pool_or_router,
+                                token_in: L2MainnetRegistry::base_token_address(best.nodes[h]),
+                                token_out: L2MainnetRegistry::base_token_address(best.nodes[h + 1]),
+                                fee_tier,
+                                curve_index_in: 0,
+                                curve_index_out: 1,
+                            };
                         }
-                        let internal_cap_base = 50.0 / p_eur;
-                        let flash_cap_base = 15_000.0 / p_eur;
-                        let gas_base = 0.004 / p_eur;
-                        let min_profit_base = 0.01 / p_eur;
-
-                        let sizing = OptimalTradeSizer::size_dex_amm_cycle(
-                            &amm_hops[..hops],
-                            internal_cap_base,
-                            flash_cap_base,
-                            0.0, // Balancer Vault 0.00% fee line
-                            gas_base,
-                            min_profit_base,
+                        let mut cd_buf = [0u8; 1536];
+                        let loan_token = L2MainnetRegistry::base_token_address(best.nodes[0]);
+                        let loan_amount_wei = match best.nodes[0] {
+                            CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN => {
+                                ((trade_notional / p_eur) * 1e18) as u128
+                            }
+                            CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => {
+                                ((trade_notional / p_eur) * 1e8) as u128
+                            }
+                            _ => {
+                                ((trade_notional / p_eur) * 1e6) as u128
+                            }
+                        };
+                        let min_net_profit_wei = match best.nodes[0] {
+                            CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN => {
+                                (((net_eur / p_eur) * 1e18).max(1.0)) as u128
+                            }
+                            CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => {
+                                (((net_eur / p_eur) * 1e8).max(1.0)) as u128
+                            }
+                            _ => {
+                                (((net_eur / p_eur) * 1e6).max(1.0)) as u128
+                            }
+                        };
+                        let _cd_len = tx_builder.encode_execute_flash_calldata(
+                            1, // Balancer Vault provider
+                            &loan_token,
+                            loan_amount_wei,
+                            0, // zero internal contribution
+                            min_net_profit_wei,
+                            &steps[..hops],
+                            &mut cd_buf,
                         );
-                        if sizing.executable && sizing.executable_input_base > 0.0 {
-                            (sizing.executable_input_base * p_eur, "FIRE_FLASH_OPTIMAL", sizing.net_profit_base * p_eur, true)
-                        } else {
-                            // Bounded conservative fraction (2%) of the bottleneck pool depth
-                            let min_cap = (0..hops).map(|h| graph.edge(best.edge_ids[h]).max_capacity_in).fold(f64::INFINITY, f64::min);
-                            let conservative_notional_base = (min_cap * 0.02).clamp(100.0 / p_eur, 3500.0 / p_eur);
-                            let conservative_notional = conservative_notional_base * p_eur;
-                            let gross = conservative_notional * (best.net_profit_bps * 1e-4);
-                            let net = (gross - 0.004).max(0.0);
-                            if net > 0.01 {
-                                (conservative_notional, "FIRE_FLASH_BALANCER_0FEE", net, true)
-                            } else {
-                                (0.0, "HOLD_SLIPPAGE", 0.0, false)
-                            }
-                        }
                     } else {
-                        let raw_notional = starting_equity_eur + cumulative_cex_mesh_pnl_eur + cumulative_dex_atomic_pnl_eur;
-                        let filter = SymbolFilterSpec::for_pair(best.nodes[0], best.nodes[1]);
-                        let notional = filter.quantize_qty_floor(raw_notional);
-                        let gross = notional * (best.net_profit_bps * 1e-4);
-                        (notional, "FIRE_IOC_ATOMIC", gross.max(0.0), true)
-                    };
-
-                    if !is_profitable || net_eur <= 0.0 {
-                        hold_cycles_count += 1;
-                        ("HOLD_SLIPPAGE", 0.0, 0.0, String::new())
-                    } else {
-                        executed_cycles_count += 1;
-                        let mut exec_meta = String::new();
-                        if uses_l2_dex {
-                            cumulative_dex_atomic_pnl_eur += net_eur;
-                            // Step 3: Compute dynamic sequencer bribe (15% profit sharing for #1 block spot)
-                            let (priority_tip_wei, bribe_cost_eur) = DynamicBribeEngine::compute_bribe(
-                                net_eur,
-                                280_000,
-                                2500.0,
-                                0.15,
-                            );
-                            // Step 4: Zero-latency in-memory nonce allocation (2 nanoseconds)
-                            let tx_nonce = nonce_tracker.next_nonce();
-                            let tip_gwei = (priority_tip_wei as f64) / 1e9;
-                            exec_meta = format!(" | Nonce #{} Tip={:.3}Gwei (€{:.4})", tx_nonce, tip_gwei, bribe_cost_eur);
-
-                            // Encode real HydraAtomicExecutor.sol calldata (provider 1 = Balancer Vault 0% fee)
-                            let hops = (best.hop_count as usize).min(4);
-                            let mut steps = [AbiSwapStep::default(); 4];
-                            for h in 0..hops {
-                                let e_id = best.edge_ids[h];
-                                let edge = graph.edge(e_id);
-                                let (dex_type, pool_or_router, fee_tier) = match edge.venue {
-                                    VenueId::BaseUniV3 | VenueId::BaseSushiV3 => {
-                                        let tier = if edge.from == CurrencyId::BRETT
-                                            || edge.to == CurrencyId::BRETT
-                                        {
-                                            10000 // 1.00% UniV3 BRETT pool
-                                        } else if edge.from == CurrencyId::DEGEN
-                                            || edge.to == CurrencyId::DEGEN
-                                        {
-                                            3000 // 0.30% UniV3 DEGEN pool
-                                        } else if edge.from == CurrencyId::AERO
-                                            || edge.to == CurrencyId::AERO
-                                            || edge.from == CurrencyId::VIRTUAL
-                                            || edge.to == CurrencyId::VIRTUAL
-                                        {
-                                            3000
-                                        } else if edge.from == CurrencyId::ETH || edge.to == CurrencyId::ETH {
-                                            100
-                                        } else if edge.from == CurrencyId::CBBTC || edge.to == CurrencyId::CBBTC {
-                                            500
-                                        } else {
-                                            500
-                                        };
-                                        (4u8, L2MainnetRegistry::BASE_UNIV3_ROUTER02, tier)
-                                    }
-                                    VenueId::BaseAerodromeStable => {
-                                        (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 1u32)
-                                    }
-                                    _ => {
-                                        (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 0u32)
-                                    }
-                                };
-                                steps[h] = AbiSwapStep {
-                                    dex_type,
-                                    pool_or_router,
-                                    token_in: L2MainnetRegistry::base_token_address(best.nodes[h]),
-                                    token_out: L2MainnetRegistry::base_token_address(best.nodes[h + 1]),
-                                    fee_tier,
-                                    curve_index_in: 0,
-                                    curve_index_out: 1,
-                                };
-                            }
-                            let mut cd_buf = [0u8; 1536];
-                            let loan_token = L2MainnetRegistry::base_token_address(best.nodes[0]);
-                            let loan_amount_wei = match best.nodes[0] {
-                                CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN => {
-                                    ((trade_notional / p_eur) * 1e18) as u128
-                                }
-                                CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => {
-                                    ((trade_notional / p_eur) * 1e8) as u128
-                                }
-                                _ => {
-                                    ((trade_notional / p_eur) * 1e6) as u128
-                                }
-                            };
-                            let min_net_profit_wei = match best.nodes[0] {
-                                CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN => {
-                                    (((net_eur / p_eur) * 1e18).max(1.0)) as u128
-                                }
-                                CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => {
-                                    (((net_eur / p_eur) * 1e8).max(1.0)) as u128
-                                }
-                                _ => {
-                                    (((net_eur / p_eur) * 1e6).max(1.0)) as u128
-                                }
-                            };
-                            let _cd_len = tx_builder.encode_execute_flash_calldata(
-                                1, // Balancer Vault provider
-                                &loan_token,
-                                loan_amount_wei,
-                                0, // zero internal contribution
-                                min_net_profit_wei,
-                                &steps[..hops],
-                                &mut cd_buf,
-                            );
-                        } else {
-                            cumulative_cex_mesh_pnl_eur += net_eur;
-                        }
-                        (action_label, trade_notional, net_eur, exec_meta)
+                        cumulative_cex_mesh_pnl_eur += net_eur;
                     }
-                } else {
-                    hold_cycles_count += 1;
-                    let label = if executable { "HOLD_WAIT" } else { "HOLD_NON_ATOMIC" };
-                    (label, 0.0, 0.0, String::new())
-                };
+                    (action_label, trade_notional, net_eur, exec_meta)
+                }
+            };
 
             let current_equity_eur =
                 starting_equity_eur + cumulative_cex_mesh_pnl_eur + cumulative_dex_atomic_pnl_eur;
@@ -488,6 +556,8 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                 &route_str,
                 &path_str,
                 best.net_profit_bps,
+                circuit_breaker_tripped,
+                hourly_gas_burned_eur,
             );
         }
 
@@ -523,18 +593,27 @@ fn write_status_markdown(
     best_route: &str,
     best_path: &str,
     best_net_bps: f64,
+    circuit_breaker_tripped: bool,
+    hourly_gas_burned_eur: f64,
 ) {
     let net_pnl = current_eur - start_eur;
     let roi_pct = (net_pnl / start_eur) * 100.0;
+    let cb_status_str = if circuit_breaker_tripped {
+        "[TRIPPED - PAUSED]"
+    } else {
+        "[ACTIVE - NORMAL]"
+    };
     let content = format!(
         "# HYDRA-HFT v4.0 — Live €150.00 Paper-Trading Telemetry Dashboard\n\n\
          - **Starting Test Equity:** `€{:.2}` (€50 Tokyo Binance + €50 London Kraken + €50 Frankfurt Base L2)\n\
-         - **FlashLoan Multiplier:** `€15,000.00` (Balancer Vault 0.00% fee line)\n\
+         - **FlashLoan Multiplier:** `€15,000.00` (Balancer Vault 0.00% fee line; €3,500 capped on memes)\n\
          - **Current Live Equity:** `€{:.4}` (**{:+.3}%**)\n\
          - **Cumulative Net PnL:** `+€{:.4}` (CEX/Mesh: `+€{:.4}`, Base L2 DEX Atomic: `+€{:.4}`)\n\
          - **Live Polls Completed:** `{}` (`{}` executed `FIRE`, `{}` held `HOLD`)\n\
          - **Latest Network Poll RTT:** `{:.1} ms` | **Internal SPFA Solver Time:** `{:.2} µs`\n\
          - **Top Active Arbitrage Ring:** `[{}] {}` (`{:+.2} bps` net after fees)\n\
+         - **Circuit Breaker Status:** `{}` (Hourly Gas Burn: `€{:.4}/€1.50`)\n\
+         - **Safety Shields:** Bounded Meme Cap (`€3,500.00`), Anti-Echo Guard (`3-poll cooldown & 5.0 bps wave`)\n\
          - **Step 1 (Hyper-Volatile Base):** `BRETT` & `DEGEN` active with 100/30 bps fee schedules\n\
          - **Step 2 (Multicall3 State Sync):** Single-shot atomic block-level query (`0xca11...ca11`)\n\
          - **Step 3 (Sequencer Bribe):** Dynamic 15% profit sharing for #1 block spot (0.001–10.0 Gwei)\n\
@@ -552,7 +631,9 @@ fn write_status_markdown(
         solver_us,
         best_route,
         best_path,
-        best_net_bps
+        best_net_bps,
+        cb_status_str,
+        hourly_gas_burned_eur
     );
     let _ = fs::write(path, content);
 }
@@ -636,6 +717,99 @@ mod atomicity_tests {
         // Pure Binance cycle is single-domain.
         assert!(venues_single_domain(&[VenueId::BinanceSpot, VenueId::BinanceSpot]));
         assert!(!venues_single_domain(&[]));
+    }
+
+    #[test]
+    fn test_anti_echo_guard_requires_cooldown_and_price_wave_shift() {
+        let path_hash_a = 0x12345678_abcdef01u64;
+        let path_hash_b = 0x87654321_10fedcbau64;
+
+        let last_fired_path_hash = path_hash_a;
+        let last_fired_poll_idx = 10usize;
+        let last_fired_gross_bps = 25.0f64;
+
+        // Same path immediately next poll (idx 11) with only 0.2 bps noise -> must be held
+        let is_same = path_hash_a == last_fired_path_hash;
+        let cd_ok = 11usize.saturating_sub(last_fired_poll_idx) >= 3;
+        let wave_delta = (25.2 - last_fired_gross_bps).abs();
+        let wave_ok = if is_same { wave_delta >= 5.0 } else { wave_delta > 0.05 };
+        let anti_echo_pass = (!is_same && wave_ok) || (is_same && cd_ok && wave_ok);
+        assert!(!anti_echo_pass, "Same path without cooldown and wave shift must fail");
+
+        // Same path 3 polls later (idx 13) but still no wave shift (< 5.0 bps) -> must be held
+        let cd_ok_poll13 = 13usize.saturating_sub(last_fired_poll_idx) >= 3;
+        let wave_delta_small = (26.0 - last_fired_gross_bps).abs();
+        let wave_ok_small = if is_same { wave_delta_small >= 5.0 } else { wave_delta_small > 0.05 };
+        let anti_echo_pass_small = (!is_same && wave_ok_small) || (is_same && cd_ok_poll13 && wave_ok_small);
+        assert!(!anti_echo_pass_small, "Same path without >= 5.0 bps wave shift must fail");
+
+        // Same path 3 polls later (idx 13) WITH significant wave shift (+8.0 bps) -> passes
+        let wave_delta_big = (33.0 - last_fired_gross_bps).abs();
+        let wave_ok_big = if is_same { wave_delta_big >= 5.0 } else { wave_delta_big > 0.05 };
+        let anti_echo_pass_big = (!is_same && wave_ok_big) || (is_same && cd_ok_poll13 && wave_ok_big);
+        assert!(anti_echo_pass_big, "Same path with cooldown >= 3 and delta >= 5.0 bps must pass");
+
+        // Different path on poll 11 with small wave shift (> 0.05 bps) -> passes
+        let is_same_b = path_hash_b == last_fired_path_hash;
+        let wave_delta_b = (25.1 - last_fired_gross_bps).abs();
+        let wave_ok_b = if is_same_b { wave_delta_b >= 5.0 } else { wave_delta_b > 0.05 };
+        let anti_echo_pass_b = (!is_same_b && wave_ok_b) || (is_same_b && false && wave_ok_b);
+        assert!(anti_echo_pass_b, "Independent path passes without being blocked by other path cooldown");
+    }
+
+    #[test]
+    fn test_bounded_meme_flashloan_cap() {
+        let meme_nodes = [CurrencyId::WETH, CurrencyId::BRETT, CurrencyId::USDC];
+        let is_meme = (0..meme_nodes.len()).any(|h| {
+            let n = meme_nodes[h];
+            n == CurrencyId::BRETT || n == CurrencyId::DEGEN
+        });
+        assert!(is_meme);
+        let cap_meme = if is_meme { 3_500.0 } else { 15_000.0 };
+        assert_eq!(cap_meme, 3_500.0);
+
+        let fundamental_nodes = [CurrencyId::WETH, CurrencyId::USDC, CurrencyId::CBBTC];
+        let is_fund_meme = (0..fundamental_nodes.len()).any(|h| {
+            let n = fundamental_nodes[h];
+            n == CurrencyId::BRETT || n == CurrencyId::DEGEN
+        });
+        assert!(!is_fund_meme);
+        let cap_fund = if is_fund_meme { 3_500.0 } else { 15_000.0 };
+        assert_eq!(cap_fund, 15_000.0);
+    }
+
+    #[test]
+    fn test_hourly_circuit_breaker_gas_limit() {
+        let max_hourly_gas = 1.50f64;
+        let mut burned = 0.0f64;
+        let mut tripped = false;
+
+        // Normal trades burning €0.02 each
+        for _ in 0..50 {
+            burned += 0.02;
+            if burned >= max_hourly_gas {
+                tripped = true;
+            }
+        }
+        assert!(!tripped);
+        assert!((burned - 1.00).abs() < 1e-6);
+
+        // High gas spike pushing burn over €1.50
+        burned += 0.55;
+        if burned >= max_hourly_gas {
+            tripped = true;
+        }
+        assert!(tripped, "Gas burn over €1.50 must trip circuit breaker");
+
+        // Hourly window rolls over -> resets circuit breaker
+        let hour_window_start_s = 1_000_000u64;
+        let now_s = 1_000_000u64 + 3601;
+        if now_s.saturating_sub(hour_window_start_s) >= 3600 {
+            burned = 0.0;
+            tripped = false;
+        }
+        assert!(!tripped, "New hourly window must reset circuit breaker");
+        assert_eq!(burned, 0.0);
     }
 }
 

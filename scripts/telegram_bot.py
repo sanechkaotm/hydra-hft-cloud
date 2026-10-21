@@ -186,6 +186,16 @@ def run_telegram_service():
                                 )
                                 for cid in known_chats:
                                     send_message(cid, alert)
+                            elif len(parts) >= 12 and "CIRCUIT_BREAKER" in parts[8]:
+                                poll_idx, _, _, _, _, _, _, _, _, _, _, equity = parts[:12]
+                                alert = (
+                                    f"🚨 *ВНИМАНИЕ: СРАБОТАЛ CIRCUIT BREAKER!* 🚨\n\n"
+                                    f"Тик #{poll_idx}: Достигнут часовой лимит расхода газа (€1.50/час).\n"
+                                    f"Исполнение сделок временно приостановлено для защиты капитала.\n"
+                                    f"Текущий баланс: *€{float(equity):.4f}*"
+                                )
+                                for cid in known_chats:
+                                    send_message(cid, alert)
 
         except Exception as e:
             print(f"[Telegram Service Error] {e}")
