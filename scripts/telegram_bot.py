@@ -167,6 +167,8 @@ def run_telegram_service():
             if os.path.exists(CSV_LOG) and known_chats:
                 with open(CSV_LOG, "r", encoding="utf-8") as f:
                     lines = f.readlines()
+                    if len(lines) < last_processed_line:
+                        last_processed_line = 1
                     if len(lines) > last_processed_line:
                         new_lines = lines[last_processed_line:]
                         last_processed_line = len(lines)
