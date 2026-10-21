@@ -37,6 +37,13 @@ while true; do
             cargo build --release
         fi
 
+        # Ensure systemd service points to unified run_engine.sh
+        if [ -f "/etc/systemd/system/hydra.service" ] && grep -q "target/release/hydra-node" /etc/systemd/system/hydra.service 2>/dev/null; then
+            echo "Updating hydra.service to use unified run_engine.sh..."
+            sudo sed -i "s|ExecStart=.*|ExecStart=/bin/bash $REPO_DIR/scripts/run_engine.sh|" /etc/systemd/system/hydra.service 2>/dev/null || true
+            sudo systemctl daemon-reload 2>/dev/null || true
+        fi
+
         echo "Restarting hydra.service with new updates..."
         sudo systemctl restart hydra.service 2>/dev/null || true
         echo "Update successfully deployed!"

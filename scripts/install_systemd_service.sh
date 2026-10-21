@@ -44,7 +44,7 @@ Type=simple
 User=$CURRENT_USER
 WorkingDirectory=$REPO_DIR
 Environment=PATH=$USER_HOME/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ExecStart=$REPO_DIR/target/release/hydra-node --paper-48h --capital 150.00 --polls 0
+ExecStart=/bin/bash $REPO_DIR/scripts/run_engine.sh
 Restart=always
 RestartSec=5
 StandardOutput=append:$REPO_DIR/logs/paper_48h_stdout.log
