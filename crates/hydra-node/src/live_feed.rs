@@ -208,6 +208,10 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
     );
     println!(" Telemetry CSV Log    : {}", csv_path);
     println!(" Live Status Report   : {}", status_md_path);
+    let _ = fs::remove_file("logs/HALT_KILLSWITCH.flag");
+    if cfg.mode == crate::config::ExecutionMode::Live {
+        println!(" [LIVE BROADCAST ENABLED] Routing executable trades to Anomaly Guardian on UDP 127.0.0.1:8765");
+    }
     println!("------------------------------------------------------------------------------------------");
 
     let fee_engine = FeeEngine::default();
@@ -223,6 +227,10 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
     let max_hourly_gas_burn_eur = 1.50f64;
 
     for poll_idx in 1..=total_polls {
+        if std::path::Path::new("logs/HALT_KILLSWITCH.flag").exists() {
+            eprintln!("\n [HALT SIGNAL] Emergency Stop Flag detected from Anomaly Guardian. Terminating engine.");
+            break;
+        }
         let mut tickers = Vec::with_capacity(64);
         let poll_rtt_ms = fetch_all_trinode_live_quotes(&mut tickers);
 
@@ -329,12 +337,12 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         amm_hops[h] = AmmPoolHop::new(r_in, r_out, edge.fee_fraction);
                     }
 
-                    // Safety Improvement 1: Bounded Meme FlashLoan Cap (€3,500 for BRETT/DEGEN, €15,000 for fundamentals)
+                    // Safety Improvement 1: Bounded Meme FlashLoan Cap (€350 for BRETT/DEGEN, €15,000 for fundamentals)
                     let is_meme_cycle = (0..hops).any(|h| {
                         let n = best.nodes[h];
                         n == CurrencyId::BRETT || n == CurrencyId::DEGEN
                     });
-                    let max_flash_credit_eur = if is_meme_cycle { 3_500.0 } else { 15_000.0 };
+                    let max_flash_credit_eur = if is_meme_cycle { 350.0 } else { 15_000.0 };
 
                     let internal_cap_base = 50.0 / p_eur;
                     let flash_cap_base = max_flash_credit_eur / p_eur;
@@ -476,16 +484,16 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         };
                         let min_net_profit_wei = match best.nodes[0] {
                             CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN => {
-                                (((net_eur / p_eur) * 1e18).max(1.0)) as u128
+                                (((cfg.min_dex_profit_eur / p_eur) * 1e18).max(1.0)) as u128
                             }
                             CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => {
-                                (((net_eur / p_eur) * 1e8).max(1.0)) as u128
+                                (((cfg.min_dex_profit_eur / p_eur) * 1e8).max(1.0)) as u128
                             }
                             _ => {
-                                (((net_eur / p_eur) * 1e6).max(1.0)) as u128
+                                (((cfg.min_dex_profit_eur / p_eur) * 1e6).max(1.0)) as u128
                             }
                         };
-                        let _cd_len = tx_builder.encode_execute_flash_calldata(
+                        let cd_len = tx_builder.encode_execute_flash_calldata(
                             1, // Balancer Vault provider
                             &loan_token,
                             loan_amount_wei,
@@ -494,6 +502,22 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                             &steps[..hops],
                             &mut cd_buf,
                         );
+
+                        if cfg.mode == crate::config::ExecutionMode::Live {
+                            let mut cd_hex = String::with_capacity(2 + cd_len * 2);
+                            cd_hex.push_str("0x");
+                            for b in &cd_buf[..cd_len] {
+                                use std::fmt::Write;
+                                let _ = write!(&mut cd_hex, "{:02x}", b);
+                            }
+                            let trigger_payload = format!(
+                                r#"{{"poll_idx":{},"path":"{}","route":"{}","net_profit_eur":{:.4},"priority_tip_wei":{},"calldata":"{}"}}"#,
+                                poll_idx, path_str, route_str, net_eur, priority_tip_wei, cd_hex
+                            );
+                            if let Ok(socket) = std::net::UdpSocket::bind("127.0.0.1:0") {
+                                let _ = socket.send_to(trigger_payload.as_bytes(), "127.0.0.1:8765");
+                            }
+                        }
                     } else {
                         cumulative_cex_mesh_pnl_eur += net_eur;
                     }

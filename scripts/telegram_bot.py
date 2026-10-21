@@ -163,40 +163,9 @@ def run_telegram_service():
                     elif text == "/ping":
                         send_message(chat_id, "🏓 Понг! Движок Hydra-HFT активен и отслеживает котировки.")
 
-            # 2. Check for new trades in CSV log
-            if os.path.exists(CSV_LOG) and known_chats:
-                with open(CSV_LOG, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-                    if len(lines) < last_processed_line:
-                        last_processed_line = 1
-                    if len(lines) > last_processed_line:
-                        new_lines = lines[last_processed_line:]
-                        last_processed_line = len(lines)
-                        for line in new_lines:
-                            parts = line.strip().split(",")
-                            if len(parts) >= 12 and "FIRE" in parts[8]:
-                                poll_idx, _, rtt, solver_us, route, path, gross, net, action, notional, profit, equity = parts[:12]
-                                alert = (
-                                    f"⚡ *СДЕЛКА ИСПОЛНЕНА (FIRE)!* ⚡\n\n"
-                                    f"🎯 *Маршрут:* `[{route}]` {path}\n"
-                                    f"📈 *Спред:* `{float(gross):+.2f} bps` (чистый: `+{float(net):.2f} bps`)\n"
-                                    f"💰 *Прибыль:* *+€{float(profit):.4f}*\n"
-                                    f"💼 *Новый капитал:* *€{float(equity):.4f}*\n"
-                                    f"⚡ *Скорость:* Solver `{float(solver_us):.1f} µs` | RTT `{float(rtt):.1f} ms`"
-                                )
-                                for cid in known_chats:
-                                    send_message(cid, alert)
-                            elif len(parts) >= 12 and "CIRCUIT_BREAKER" in parts[8]:
-                                poll_idx, _, _, _, _, _, _, _, _, _, _, equity = parts[:12]
-                                alert = (
-                                    f"🚨 *ВНИМАНИЕ: СРАБОТАЛ CIRCUIT BREAKER!* 🚨\n\n"
-                                    f"Тик #{poll_idx}: Достигнут часовой лимит расхода газа (€1.50/час).\n"
-                                    f"Исполнение сделок временно приостановлено для защиты капитала.\n"
-                                    f"Текущий баланс: *€{float(equity):.4f}*"
-                                )
-                                for cid in known_chats:
-                                    send_message(cid, alert)
-
+            # In live mode, notifications are sent exclusively by live_broadcaster.py 
+            # upon confirmed on-chain transaction execution on Base Mainnet.
+            pass
         except Exception as e:
             print(f"[Telegram Service Error] {e}")
 

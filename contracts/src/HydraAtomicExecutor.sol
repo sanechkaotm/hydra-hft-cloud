@@ -375,7 +375,7 @@ contract HydraAtomicExecutor is IFlashLoanSimpleReceiver, IBalancerFlashLoanReci
                 0
             );
         } else if (step.dexType == DEX_AERODROME_ROUTER) {
-            address factory = IAerodromeRouter(step.poolOrRouter).defaultFactory();
+            address factory = 0x420DD381b31aEf6683db6B902084cB0FFECe40Da; // Verified Base Aerodrome PoolFactory
             IAerodromeRouter.Route[] memory routes = new IAerodromeRouter.Route[](1);
             routes[0] = IAerodromeRouter.Route({
                 from: step.tokenIn,
