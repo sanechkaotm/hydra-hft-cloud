@@ -4,8 +4,8 @@
 - **FlashLoan Multiplier:** `€15,000.00` (Balancer Vault 0.00% fee line)
 - **Current Live Equity:** `€287.4783` (**+91.652%**)
 - **Cumulative Net PnL:** `+€137.4783` (CEX/Mesh: `+€0.0000`, Base L2 DEX Atomic: `+€137.4783`)
-- **Live Polls Completed:** `38` (`2` executed `FIRE`, `37` held `HOLD`)
-- **Latest Network Poll RTT:** `28.8 ms` | **Internal SPFA Solver Time:** `163.00 µs`
+- **Live Polls Completed:** `16` (`2` executed `FIRE`, `15` held `HOLD`)
+- **Latest Network Poll RTT:** `31.8 ms` | **Internal SPFA Solver Time:** `136.40 µs`
 - **Top Active Arbitrage Ring:** `[AERO/UNI3] WETH->BRETT->WETH` (`+58.09 bps` net after fees)
 - **Step 1 (Hyper-Volatile Base):** `BRETT` & `DEGEN` active with 100/30 bps fee schedules
 - **Step 2 (Multicall3 State Sync):** Single-shot atomic block-level query (`0xca11...ca11`)
