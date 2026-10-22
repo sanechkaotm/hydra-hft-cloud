@@ -2,12 +2,12 @@
 
 - **Starting Test Equity:** `€150.00` (€50 Tokyo Binance + €50 London Kraken + €50 Frankfurt Base L2)
 - **FlashLoan Multiplier:** `€15,000.00` (Balancer Vault 0.00% fee line; €3,500 capped on memes)
-- **Current Live Equity:** `€152.3405` (**+1.560%**)
-- **Cumulative Net PnL:** `+€2.3405` (CEX/Mesh: `+€0.0000`, Base L2 DEX Atomic: `+€2.3405`)
-- **Live Polls Completed:** `25` (`13` executed `FIRE`, `12` held `HOLD`)
-- **Latest Network Poll RTT:** `24.8 ms` | **Internal SPFA Solver Time:** `68.65 µs`
+- **Current Live Equity:** `€150.0000` (**+0.000%**)
+- **Cumulative Net PnL:** `+€0.0000` (CEX/Mesh: `+€0.0000`, Base L2 DEX Atomic: `+€0.0000`)
+- **Live Polls Completed:** `25` (`0` executed `FIRE`, `25` held `HOLD`)
+- **Latest Network Poll RTT:** `21.2 ms` | **Internal SPFA Solver Time:** `64.00 µs`
 - **Top Active Arbitrage Ring:** `[UNI3/AERO] WETH->VIRTUAL->WETH` (`+8.17 bps` net after fees)
-- **Circuit Breaker Status:** `[ACTIVE - NORMAL]` (Hourly Gas Burn: `€0.4031/€1.50`)
+- **Circuit Breaker Status:** `[ACTIVE - NORMAL]` (Hourly Gas Burn: `€0.0000/€1.50`)
 - **Safety Shields:** Bounded Meme Cap (`€3,500.00`), Anti-Echo Guard (`3-poll cooldown & 5.0 bps wave`)
 - **Step 1 (Hyper-Volatile Base):** `BRETT` & `DEGEN` active with 100/30 bps fee schedules
 - **Step 2 (Multicall3 State Sync):** Single-shot atomic block-level query (`0xca11...ca11`)
