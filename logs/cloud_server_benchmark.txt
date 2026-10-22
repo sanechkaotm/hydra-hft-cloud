@@ -1,7 +1,7 @@
 === CLOUD DATA-CENTER DIRECT LATENCY BENCHMARK ===
-Binance CloudFront Edge RTT : 0.132447s TCP | 0.433356s TTFB
-Kraken Spot Edge RTT        : 0.023126s TCP | 0.220370s TTFB
-Base Mainnet L2 RPC RTT     : 0.183862s TCP | 0.300113s TTFB
+Binance CloudFront Edge RTT : 0.171648s TCP | 0.578586s TTFB
+Kraken Spot Edge RTT        : 0.042095s TCP | 0.192152s TTFB
+Base Mainnet L2 RPC RTT     : 0.158047s TCP | 0.229131s TTFB
 
 ==========================================================================================
  HYDRA-HFT v4.0 — DISTRIBUTED TRI-NODE ARBITRAGE ENGINE
@@ -14,16 +14,16 @@ Base Mainnet L2 RPC RTT     : 0.183862s TCP | 0.300113s TTFB
 ------------------------------------------------------------------------------------------
  TICK | CYCLE PATH (k-HOP)               | NET BPS   | OPT INPUT  | NET PNL    | EQUITY    | HOT LATENCY
 ------------------------------------------------------------------------------------------
- #1   | EUR->USDT->TRY->BRL->EUR         | + 28.80   | €  150.00  | +€  0.432  | € 150.43  |   8.23 us
- #2   | EUR->USDT->BTC->EUR              | + 34.11   | €  150.43  | +€  0.513  | € 150.95  |   4.12 us
- #3   | EUR->USDT->TRY->BRL->EUR         | + 31.32   | €  150.94  | +€  0.473  | € 151.42  |   3.53 us
- #4   | EUR->USDT->BTC->EUR              | + 35.69   | €  151.41  | +€  0.540  | € 151.96  |   3.43 us
- #5   | EUR->USDT->TRY->BRL->EUR         | + 33.84   | €  151.95  | +€  0.514  | € 152.47  |   3.75 us
- #6   | EUR->USDT->BTC->EUR              | + 37.26   | €  152.47  | +€  0.568  | € 153.04  |   3.25 us
- #7   | EUR->USDT->TRY->BRL->EUR         | + 36.36   | €  153.04  | +€  0.556  | € 153.60  |   3.44 us
- #8   | EUR->USDT->BTC->EUR              | + 38.84   | €  153.59  | +€  0.597  | € 154.19  |   3.58 us
- #9   | EUR->USDT->TRY->BRL->EUR         | + 38.88   | €  154.19  | +€  0.600  | € 154.79  |   3.32 us
- #10  | EUR->USDT->BTC->EUR              | + 40.42   | €  154.79  | +€  0.626  | € 155.42  |   3.28 us
+ #1   | EUR->USDT->TRY->BRL->EUR         | + 28.80   | €  150.00  | +€  0.432  | € 150.43  |  12.28 us
+ #2   | EUR->USDT->BTC->EUR              | + 34.11   | €  150.43  | +€  0.513  | € 150.95  |   3.61 us
+ #3   | EUR->USDT->TRY->BRL->EUR         | + 31.32   | €  150.94  | +€  0.473  | € 151.42  |   3.11 us
+ #4   | EUR->USDT->BTC->EUR              | + 35.69   | €  151.41  | +€  0.540  | € 151.96  |   3.25 us
+ #5   | EUR->USDT->TRY->BRL->EUR         | + 33.84   | €  151.95  | +€  0.514  | € 152.47  |   3.07 us
+ #6   | EUR->USDT->BTC->EUR              | + 37.26   | €  152.47  | +€  0.568  | € 153.04  |   3.60 us
+ #7   | EUR->USDT->TRY->BRL->EUR         | + 36.36   | €  153.04  | +€  0.556  | € 153.60  |   3.10 us
+ #8   | EUR->USDT->BTC->EUR              | + 38.84   | €  153.59  | +€  0.597  | € 154.19  |   3.31 us
+ #9   | EUR->USDT->TRY->BRL->EUR         | + 38.88   | €  154.19  | +€  0.600  | € 154.79  |   3.43 us
+ #10  | EUR->USDT->BTC->EUR              | + 40.42   | €  154.79  | +€  0.626  | € 155.42  |   3.11 us
 ==========================================================================================
  SESSION SUMMARY [TOKYO (ap-northeast-1)] | Executed Cycles: 10 | Net Profit: +€5.42 | Final Equity: €155.42
 ==========================================================================================
@@ -37,31 +37,31 @@ Base Mainnet L2 RPC RTT     : 0.183862s TCP | 0.300113s TTFB
  Live Status Report   : logs/paper_48h_live_status.md
 ------------------------------------------------------------------------------------------
  [REACTIVE STREAM] Reactive Base WebSocket event trigger active on UDP 127.0.0.1:8766
- [Poll #1 /25] RTT= 28.5ms | Solver=66.10us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #2 /25] RTT= 83.3ms | Solver=65.55us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #3 /25] RTT= 93.1ms | Solver=66.16us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #4 /25] RTT= 86.7ms | Solver=66.29us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #5 /25] RTT= 94.6ms | Solver=66.01us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #6 /25] RTT= 86.7ms | Solver=65.80us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #7 /25] RTT= 88.3ms | Solver=66.97us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #8 /25] RTT= 80.1ms | Solver=85.92us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #9 /25] RTT= 99.8ms | Solver=64.61us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #10/25] RTT= 88.9ms | Solver=65.32us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #11/25] RTT= 86.4ms | Solver=65.20us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #12/25] RTT= 89.6ms | Solver=65.91us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #13/25] RTT= 83.4ms | Solver=65.14us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #14/25] RTT= 86.6ms | Solver=66.12us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #15/25] RTT= 86.9ms | Solver=65.33us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #16/25] RTT= 84.7ms | Solver=64.16us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #17/25] RTT= 28.5ms | Solver=64.54us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #18/25] RTT= 86.4ms | Solver=64.02us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #19/25] RTT= 96.9ms | Solver=64.23us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #20/25] RTT= 88.7ms | Solver=64.41us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #21/25] RTT= 83.1ms | Solver=64.08us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #22/25] RTT= 84.9ms | Solver=64.77us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #23/25] RTT= 84.9ms | Solver=65.22us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #24/25] RTT= 84.2ms | Solver=63.54us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
- [Poll #25/25] RTT= 85.2ms | Solver=63.33us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #1 /25] RTT= 78.8ms | Solver=93.86us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #2 /25] RTT= 80.3ms | Solver=75.47us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #3 /25] RTT= 69.8ms | Solver=78.60us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #4 /25] RTT= 71.8ms | Solver=77.94us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #5 /25] RTT= 60.7ms | Solver=77.03us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #6 /25] RTT= 68.8ms | Solver=80.12us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #7 /25] RTT= 76.2ms | Solver=77.42us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #8 /25] RTT= 70.1ms | Solver=77.63us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #9 /25] RTT= 70.8ms | Solver=77.89us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #10/25] RTT= 69.5ms | Solver=75.51us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #11/25] RTT= 74.1ms | Solver=81.16us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #12/25] RTT= 70.8ms | Solver=79.41us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #13/25] RTT= 75.2ms | Solver=80.03us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #14/25] RTT= 71.8ms | Solver=76.97us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #15/25] RTT= 62.7ms | Solver=77.79us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #16/25] RTT= 74.9ms | Solver=77.03us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #17/25] RTT= 65.5ms | Solver=73.81us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #18/25] RTT= 66.6ms | Solver=76.50us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #19/25] RTT= 75.1ms | Solver=78.95us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #20/25] RTT= 77.9ms | Solver=79.10us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #21/25] RTT= 67.0ms | Solver=109.65us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #22/25] RTT= 70.5ms | Solver=77.06us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #23/25] RTT= 68.7ms | Solver=77.64us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #24/25] RTT= 64.5ms | Solver=101.69us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
+ [Poll #25/25] RTT= 58.8ms | Solver=108.70us | [UNI3/AERO] WETH->VIRTUAL->WETH | Gross=+68.49bps | Net= +8.17bps | HOLD_WAIT (+€0.0000) | Equity: €150.0000 (+0.000%)
 ------------------------------------------------------------------------------------------
  PAPER-TRADING SESSION SUMMARY: Starting Equity €150.00 -> Current Equity €150.0000 (Net PnL: +€0.0000, +0.000%)
 ==========================================================================================
