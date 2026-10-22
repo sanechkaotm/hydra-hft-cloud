@@ -260,59 +260,103 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
         let solver_us = t_solve.elapsed().as_nanos() as f64 / 1000.0;
 
         if !candidates.is_empty() {
-            // Only cycles whose every leg lives in ONE execution domain (one chain or one exchange)
-            // can be executed atomically. Cross-chain / CEX+DEX mixes are reported but never booked.
-            let best_atomic = candidates
+            // Sort all single-domain atomic candidates by net profit descending
+            let mut atomic_candidates: Vec<_> = candidates
                 .iter()
                 .filter(|c| is_single_domain_cycle(&graph, c))
-                .max_by(|a, b| {
-                    a.net_profit_bps
-                        .partial_cmp(&b.net_profit_bps)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
-            let (executable, best) = match best_atomic {
-                Some(atomic) => (true, atomic),
-                None => (false, &candidates[0]),
-            };
-            let hops = best.hop_count as usize;
-            let mut gross_mult = 1.0f64;
-            let mut uses_l2_dex = false;
-            for h in 0..hops {
-                let e = graph.edge(best.edge_ids[h]);
-                gross_mult *= e.rate;
-                if matches!(
-                    e.venue,
-                    VenueId::BaseUniV3
-                        | VenueId::BaseAerodromeVolatile
-                        | VenueId::BaseAerodromeStable
-                        | VenueId::BaseCurve
-                        | VenueId::BaseSushiV3
-                ) {
-                    uses_l2_dex = true;
+                .collect();
+            atomic_candidates.sort_by(|a, b| {
+                b.net_profit_bps
+                    .partial_cmp(&a.net_profit_bps)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+            // Find the first profitable candidate that passes the Anti-Echo cooldown check
+            let mut chosen = None;
+
+            for &cand in &atomic_candidates {
+                let hops = cand.hop_count as usize;
+                let mut gross_mult = 1.0f64;
+                let mut uses_l2 = false;
+                for h in 0..hops {
+                    let e = graph.edge(cand.edge_ids[h]);
+                    gross_mult *= e.rate;
+                    if matches!(
+                        e.venue,
+                        VenueId::BaseUniV3
+                            | VenueId::BaseAerodromeVolatile
+                            | VenueId::BaseAerodromeStable
+                            | VenueId::BaseCurve
+                            | VenueId::BaseSushiV3
+                    ) {
+                        uses_l2 = true;
+                    }
+                }
+                let gross_bps = (gross_mult - 1.0) * 10_000.0;
+
+                let mut path_hash = 0xcbf29ce484222325u64;
+                for h in 0..hops {
+                    path_hash ^= cand.nodes[h] as u64;
+                    path_hash = path_hash.wrapping_mul(0x100000001b3);
+                    path_hash ^= cand.edge_ids[h] as u64;
+                    path_hash = path_hash.wrapping_mul(0x100000001b3);
+                }
+
+                let is_same_path = path_hash == last_fired_path_hash;
+                let cooldown_passed = poll_idx.saturating_sub(last_fired_poll_idx) >= 5;
+                let wave_delta = (gross_bps - last_fired_gross_bps).abs();
+                let wave_shift_passed = if is_same_path { wave_delta >= 3.0 } else { wave_delta > 0.05 };
+                let passes_echo = if !is_same_path {
+                    wave_shift_passed
+                } else {
+                    cooldown_passed || wave_shift_passed
+                };
+
+                if passes_echo {
+                    chosen = Some((cand, gross_bps, path_hash, uses_l2, true));
+                    break;
                 }
             }
-            let gross_bps = (gross_mult - 1.0) * 10_000.0;
+
+            let (executable, best, gross_bps, path_hash, uses_l2_dex, anti_echo_passed) = match chosen {
+                Some((c, g, p, u, a)) => (true, c, g, p, u, a),
+                None => {
+                    if let Some(&top) = atomic_candidates.first() {
+                        let hops = top.hop_count as usize;
+                        let mut gross_mult = 1.0f64;
+                        let mut uses_l2 = false;
+                        for h in 0..hops {
+                            let e = graph.edge(top.edge_ids[h]);
+                            gross_mult *= e.rate;
+                            if matches!(
+                                e.venue,
+                                VenueId::BaseUniV3
+                                    | VenueId::BaseAerodromeVolatile
+                                    | VenueId::BaseAerodromeStable
+                                    | VenueId::BaseCurve
+                                    | VenueId::BaseSushiV3
+                            ) {
+                                uses_l2 = true;
+                            }
+                        }
+                        let gross_bps = (gross_mult - 1.0) * 10_000.0;
+                        let mut path_hash = 0xcbf29ce484222325u64;
+                        for h in 0..hops {
+                            path_hash ^= top.nodes[h] as u64;
+                            path_hash = path_hash.wrapping_mul(0x100000001b3);
+                            path_hash ^= top.edge_ids[h] as u64;
+                            path_hash = path_hash.wrapping_mul(0x100000001b3);
+                        }
+                        (true, top, gross_bps, path_hash, uses_l2, false)
+                    } else {
+                        (false, &candidates[0], 0.0, 0, false, false)
+                    }
+                }
+            };
+
+            let hops = best.hop_count as usize;
             let route_str = format_venue_route(&graph, best);
             let path_str = crate::format_cycle_path(&best.nodes[..=hops]);
-
-            // Safety Improvement 2: Deterministic 64-bit path hash for Anti-Echo Guard
-            let mut path_hash = 0xcbf29ce484222325u64;
-            for h in 0..hops {
-                path_hash ^= best.nodes[h] as u64;
-                path_hash = path_hash.wrapping_mul(0x100000001b3);
-                path_hash ^= best.edge_ids[h] as u64;
-                path_hash = path_hash.wrapping_mul(0x100000001b3);
-            }
-
-            let is_same_path = path_hash == last_fired_path_hash;
-            let cooldown_passed = poll_idx.saturating_sub(last_fired_poll_idx) >= 3;
-            let wave_delta = (gross_bps - last_fired_gross_bps).abs();
-            let wave_shift_passed = if is_same_path {
-                wave_delta >= 5.0
-            } else {
-                wave_delta > 0.05
-            };
-            let anti_echo_passed = (!is_same_path && wave_shift_passed) || (is_same_path && cooldown_passed && wave_shift_passed);
 
             if best.net_profit_bps < cfg.min_net_profit_bps {
                 last_fired_gross_bps = -9999.0;
@@ -1457,17 +1501,19 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                 u128::from_str_radix(&hex[2..66], 16),
                 u128::from_str_radix(&hex[66..130], 16),
             ) {
-                if r0 > 0 && r1 > 0 {
+                // Must have at least 1.0 WETH (1e18 wei) in pool to avoid dead zombie pool traps
+                if r0 >= 1_000_000_000_000_000_000 && r1 > 0 {
                     let weth_per_brett = (r0 as f64) / (r1 as f64);
                     if weth_per_brett > 0.0000001 && weth_per_brett < 0.1 {
+                        let dynamic_qty = ((r1 as f64) * 0.1).min(2_500_000.0);
                         out.push(LiveBookTicker {
                             venue: VenueId::BaseAerodromeVolatile,
                             base: CurrencyId::BRETT,
                             quote: CurrencyId::WETH,
                             bid_price: weth_per_brett * 0.99999,
-                            bid_qty: 2_500_000.0,
+                            bid_qty: dynamic_qty,
                             ask_price: weth_per_brett * 1.00001,
-                            ask_qty: 2_500_000.0,
+                            ask_qty: dynamic_qty,
                         });
                     }
                 }
