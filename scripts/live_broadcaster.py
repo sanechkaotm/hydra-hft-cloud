@@ -190,10 +190,11 @@ class AnomalyGuardian:
         route = cycle_info.get("route", "Unknown Route")
         net_profit_eur = cycle_info.get("net_profit_eur", 0.0)
 
-        # 1. Dynamic Sequencer Bribe (Aggressively outbids competitors: 0.05 Gwei floor + 18% profit share)
-        min_floor_tip = 50_000_000  # 0.05 Gwei floor (10x higher than 0.005 Gwei baseline)
+        # 1. Top-1 Competitive Sequencer Bribe (Aggressively outbids competing searchers: 0.08 Gwei floor + 25% profit share)
+        min_floor_tip = 80_000_000  # 0.08 Gwei floor (16x higher than 0.005 Gwei baseline)
         eth_eur = 2500.0
-        profit_bribe_wei = int(((net_profit_eur * 0.18) / eth_eur) * 1e18 / 380_000)
+        profit_share = 0.25 if net_profit_eur >= 1.00 else 0.20
+        profit_bribe_wei = int(((net_profit_eur * profit_share) / eth_eur) * 1e18 / 380_000)
         tip_wei = max(min_floor_tip, profit_bribe_wei)
         tip_wei = min(tip_wei, 2_500_000_000) # 2.5 Gwei max safety ceiling
 
