@@ -40,6 +40,8 @@ impl L2MainnetRegistry {
         hex_20(*b"AC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4");
     pub const BASE_USDBC: [u8; 20] =
         hex_20(*b"d9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA");
+    pub const BASE_CBETH: [u8; 20] =
+        hex_20(*b"2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22");
     pub const BASE_MULTICALL3: [u8; 20] =
         hex_20(*b"ca11bde05977b3631167028862be2a173976ca11");
 
@@ -79,6 +81,7 @@ impl L2MainnetRegistry {
             CurrencyId::DEGEN => Self::BASE_DEGEN,
             CurrencyId::TOSHI => Self::BASE_TOSHI,
             CurrencyId::USDBC => Self::BASE_USDBC,
+            CurrencyId::CBETH => Self::BASE_CBETH,
             _ => Self::BASE_USDC,
         }
     }

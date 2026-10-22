@@ -155,6 +155,7 @@ fn token_price_in_eur(token: CurrencyId) -> f64 {
         CurrencyId::DEGEN => 0.007,
         CurrencyId::TOSHI => 0.00035,
         CurrencyId::USDBC => 0.92,
+        CurrencyId::CBETH => 2800.0,
         CurrencyId::USDC | CurrencyId::USDT => 0.92,
         CurrencyId::EUR | CurrencyId::EURC => 1.0,
         _ => 1.0,
@@ -410,7 +411,12 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         min_profit_base,
                     );
                     if sizing.executable && sizing.executable_input_base > 0.0 {
-                        (sizing.executable_input_base * p_eur, "FIRE_FLASH_OPTIMAL", sizing.net_profit_base * p_eur, true)
+                        {
+                        // 30% safety buffer for slippage & price impact protection
+                        let safe_input_base = sizing.executable_input_base * 0.70;
+                        let safe_net_eur = (sizing.net_profit_base * 0.70) * p_eur;
+                        (safe_input_base * p_eur, "FIRE_FLASH_OPTIMAL", safe_net_eur, true)
+                    }
                     } else {
                         // Bounded conservative fraction (2%) of the bottleneck pool depth
                         let min_cap = (0..hops).map(|h| graph.edge(best.edge_ids[h]).max_capacity_in).fold(f64::INFINITY, f64::min);
@@ -528,7 +534,7 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         let mut cd_buf = [0u8; 1536];
                         let loan_token = L2MainnetRegistry::base_token_address(best.nodes[0]);
                         let loan_amount_wei = match best.nodes[0] {
-                            CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN | CurrencyId::TOSHI => {
+                            CurrencyId::CBETH | CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN | CurrencyId::TOSHI => {
                                 ((trade_notional / p_eur) * 1e18) as u128
                             }
                             CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => {
@@ -539,7 +545,7 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                             }
                         };
                         let min_net_profit_wei = match best.nodes[0] {
-                            CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN | CurrencyId::TOSHI => {
+                            CurrencyId::CBETH | CurrencyId::WETH | CurrencyId::ETH | CurrencyId::VIRTUAL | CurrencyId::AERO | CurrencyId::BRETT | CurrencyId::DEGEN | CurrencyId::TOSHI => {
                                 (((cfg.min_dex_profit_eur / p_eur) * 1e18).max(1.0)) as u128
                             }
                             CurrencyId::CBBTC | CurrencyId::BTC | CurrencyId::WBTC => {
@@ -919,7 +925,7 @@ fn extract_wire_rtt_ms(raw: &str) -> f64 {
 fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
     let _ = fs::create_dir_all("logs");
     let base_req_file = "logs/base_rpc_req.json";
-    let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x3d5d143381916280ff91407febeb52f2b60f33cf","data":"0x3850c7bd"},"latest"],"id":6},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7f670f78b17dec44d5ef68a48740b6f8849cc2e6","data":"0x0902f1ac"},"latest"],"id":7},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6cdcb1c4a4d1c3c6d054b27ac5b77e89eafb971d","data":"0x0902f1ac"},"latest"],"id":8},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x1d4dab3f27c7f656b6323c1d6ef713b48a8f72f1","data":"0x3850c7bd"},"latest"],"id":9},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x21594b992f68495dd28d605834b58889d0a727c7","data":"0x0902f1ac"},"latest"],"id":10},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xfbb6eed8e7aa03b138556eedaf5d271a5e1e43ef","data":"0x3850c7bd"},"latest"],"id":11},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x9c38b55f9a9aba91bbcedeb12bf4428f47a6a0b8","data":"0x0902f1ac"},"latest"],"id":12},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7aea2e8a3843516afa07293a10ac8e49906dabd1","data":"0x3850c7bd"},"latest"],"id":13},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2578365b3dfa7ffe60108e181efb79feddec2319","data":"0x0902f1ac"},"latest"],"id":14},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x57713f7716e0b0f65ec116912f834e49805480d2","data":"0x3850c7bd"},"latest"],"id":15},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x41595326aabe6132fc6c7ae71af087a3a9dbc9f6","data":"0x3850c7bd"},"latest"],"id":16},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xba3f945812a83471d709bce9c3ca699a19fb46f7","data":"0x3850c7bd"},"latest"],"id":17},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x214356cc4aab907244a791ca9735292860490d5a","data":"0x0902f1ac"},"latest"],"id":18},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xc9034c3e7f58003e6ae0c8438e7c8f4598d5acaa","data":"0x3850c7bd"},"latest"],"id":19},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2c4909355b0c036840819484c3a882a95659abf3","data":"0x0902f1ac"},"latest"],"id":20},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xca11bde05977b3631167028862be2a173976ca11","data":"0x42cbb15c"},"latest"],"id":21}]"#;
+    let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59","data":"0x3850c7bd"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x3d5d143381916280ff91407febeb52f2b60f33cf","data":"0x3850c7bd"},"latest"],"id":6},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7f670f78b17dec44d5ef68a48740b6f8849cc2e6","data":"0x0902f1ac"},"latest"],"id":7},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6cdcb1c4a4d1c3c6d054b27ac5b77e89eafb971d","data":"0x0902f1ac"},"latest"],"id":8},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x1d4dab3f27c7f656b6323c1d6ef713b48a8f72f1","data":"0x3850c7bd"},"latest"],"id":9},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x21594b992f68495dd28d605834b58889d0a727c7","data":"0x0902f1ac"},"latest"],"id":10},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xfbb6eed8e7aa03b138556eedaf5d271a5e1e43ef","data":"0x3850c7bd"},"latest"],"id":11},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x9c38b55f9a9aba91bbcedeb12bf4428f47a6a0b8","data":"0x0902f1ac"},"latest"],"id":12},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7aea2e8a3843516afa07293a10ac8e49906dabd1","data":"0x3850c7bd"},"latest"],"id":13},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2578365b3dfa7ffe60108e181efb79feddec2319","data":"0x0902f1ac"},"latest"],"id":14},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x57713f7716e0b0f65ec116912f834e49805480d2","data":"0x3850c7bd"},"latest"],"id":15},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x41595326aabe6132fc6c7ae71af087a3a9dbc9f6","data":"0x3850c7bd"},"latest"],"id":16},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xba3f945812a83471d709bce9c3ca699a19fb46f7","data":"0x3850c7bd"},"latest"],"id":17},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x214356cc4aab907244a791ca9735292860490d5a","data":"0x0902f1ac"},"latest"],"id":18},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xc9034c3e7f58003e6ae0c8438e7c8f4598d5acaa","data":"0x3850c7bd"},"latest"],"id":19},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2c4909355b0c036840819484c3a882a95659abf3","data":"0x0902f1ac"},"latest"],"id":20},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xca11bde05977b3631167028862be2a173976ca11","data":"0x42cbb15c"},"latest"],"id":21},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xa9dafa443a02fbc907cb0093276b3e6f4ef02a46","data":"0x3850c7bd"},"latest"],"id":22},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x44ecc644449fc3a9858d2007caa8cfaa4c561f91","data":"0x0902f1ac"},"latest"],"id":23}]"#;
     let _ = fs::write(base_req_file, rpc_payload);
 
     let arb_req_file = "logs/arb_rpc_req.json";
@@ -1561,6 +1567,55 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                             bid_qty: 30_000_000.0,
                             ask_price: weth_per_degen * 1.00001,
                             ask_qty: 30_000_000.0,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    
+    // Parse id=22 (Base Mainnet UniV3 cbETH/WETH 1-bps pool 0xa9da...2a46 slot0)
+    if let Some(hex) = extract_rpc_result(resp, 22) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let weth_per_cbeth = ratio * ratio;
+                if weth_per_cbeth > 0.5 && weth_per_cbeth < 2.5 {
+                    out.push(LiveBookTicker {
+                        venue: VenueId::BaseUniV3,
+                        base: CurrencyId::CBETH,
+                        quote: CurrencyId::WETH,
+                        bid_price: weth_per_cbeth * 0.99999,
+                        bid_qty: 50.0,
+                        ask_price: weth_per_cbeth * 1.00001,
+                        ask_qty: 50.0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Parse id=23 (Aerodrome V2 WETH/cbETH volatile pool 0x44ec...1f91 getReserves)
+    if let Some(hex) = extract_rpc_result(resp, 23) {
+        if hex.len() >= 130 {
+            if let (Ok(r0), Ok(r1)) = (
+                u128::from_str_radix(&hex[2..66], 16),
+                u128::from_str_radix(&hex[66..130], 16),
+            ) {
+                // r0 is cbETH (18 dec), r1 is WETH (18 dec). Require min 5 ETH liquidity
+                if r0 >= 5_000_000_000_000_000_000 && r1 >= 5_000_000_000_000_000_000 {
+                    let weth_per_cbeth = (r1 as f64) / (r0 as f64);
+                    if weth_per_cbeth > 0.5 && weth_per_cbeth < 2.5 {
+                        let dynamic_qty = ((r0 as f64) / 1e18 * 0.20).min(50.0);
+                        out.push(LiveBookTicker {
+                            venue: VenueId::BaseAerodromeVolatile,
+                            base: CurrencyId::CBETH,
+                            quote: CurrencyId::WETH,
+                            bid_price: weth_per_cbeth * 0.99999,
+                            bid_qty: dynamic_qty,
+                            ask_price: weth_per_cbeth * 1.00001,
+                            ask_qty: dynamic_qty,
                         });
                     }
                 }
