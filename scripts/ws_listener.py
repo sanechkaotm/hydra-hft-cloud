@@ -11,12 +11,21 @@ import json
 import socket
 import sys
 import time
+import os
+from dotenv import load_dotenv
 
-WS_ENDPOINTS = [
+load_dotenv()
+
+WS_ENDPOINTS = []
+ALCHEMY_KEY = os.getenv("HYDRA_ALCHEMY_KEY")
+if ALCHEMY_KEY:
+    WS_ENDPOINTS.append(f"wss://base-mainnet.g.alchemy.com/v2/{ALCHEMY_KEY}")
+
+WS_ENDPOINTS.extend([
     "wss://base-rpc.publicnode.com",
     "wss://base.drpc.org",
     "wss://base.gateway.tenderly.co"
-]
+])
 
 UDP_TARGET = ("127.0.0.1", 8766)
 
@@ -58,7 +67,8 @@ async def run_listener():
             await asyncio.sleep(2)
 
 if __name__ == "__main__":
+    print("[*] Starting Hydra-HFT Reactive WebSocket Streamer...")
     try:
         asyncio.run(run_listener())
     except KeyboardInterrupt:
-        print("\n[!] WS Streamer stopped.")
+        print("\n[!] Listener stopped by user.")

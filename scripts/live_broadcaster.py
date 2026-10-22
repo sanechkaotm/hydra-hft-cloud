@@ -33,6 +33,9 @@ BASE_RPCS = [
     "https://base.drpc.org",             # Backup 2: Decentralized DRPC
     "https://base.llamarpc.com"          # Backup 3: LlamaRPC
 ]
+ALCHEMY_KEY = os.getenv("HYDRA_ALCHEMY_KEY")
+if ALCHEMY_KEY:
+    BASE_RPCS.insert(0, f"https://base-mainnet.g.alchemy.com/v2/{ALCHEMY_KEY}")
 
 # Strict Anomaly Guardrail Limits
 MIN_WALLET_BALANCE_ETH = 0.0030    # Hard stop if gas drops below ~0.003 ETH (~$7.80)
