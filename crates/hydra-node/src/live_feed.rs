@@ -411,12 +411,14 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         min_profit_base,
                     );
                     if sizing.executable && sizing.executable_input_base > 0.0 {
-                        {
                         // 30% safety buffer for slippage & price impact protection
                         let safe_input_base = sizing.executable_input_base * 0.70;
                         let safe_net_eur = (sizing.net_profit_base * 0.70) * p_eur;
-                        (safe_input_base * p_eur, "FIRE_FLASH_OPTIMAL", safe_net_eur, true)
-                    }
+                        if safe_net_eur < cfg.min_dex_profit_eur {
+                            (0.0, "HOLD_DUST_PROFIT", 0.0, false)
+                        } else {
+                            (safe_input_base * p_eur, "FIRE_FLASH_OPTIMAL", safe_net_eur, true)
+                        }
                     } else {
                         // Bounded conservative fraction (2%) of the bottleneck pool depth
                         let min_cap = (0..hops).map(|h| graph.edge(best.edge_ids[h]).max_capacity_in).fold(f64::INFINITY, f64::min);
