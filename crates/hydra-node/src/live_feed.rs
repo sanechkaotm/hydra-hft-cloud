@@ -531,6 +531,10 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                                         100
                                     } else if edge.from == CurrencyId::CBBTC || edge.to == CurrencyId::CBBTC {
                                         500
+                                    } else if edge.from == CurrencyId::DEGEN || edge.to == CurrencyId::DEGEN {
+                                        3000
+                                    } else if edge.from == CurrencyId::TOSHI || edge.to == CurrencyId::TOSHI {
+                                        3000
                                     } else {
                                         500
                                     };
@@ -538,6 +542,10 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                                 }
                                 VenueId::BaseAerodromeStable => {
                                     let tier = if edge.from == CurrencyId::VIRTUAL || edge.to == CurrencyId::VIRTUAL {
+                                        500u32
+                                    } else if edge.from == CurrencyId::DEGEN || edge.to == CurrencyId::DEGEN {
+                                        500u32
+                                    } else if edge.from == CurrencyId::TOSHI || edge.to == CurrencyId::TOSHI {
                                         500u32
                                     } else {
                                         100u32
@@ -953,7 +961,7 @@ fn extract_wire_rtt_ms(raw: &str) -> f64 {
 fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
     let _ = fs::create_dir_all("logs");
     let base_req_file = "logs/base_rpc_req.json";
-    let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xcdac0d6c6c59727a65f871236188350531885c43","data":"0x0902f1ac"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x3d5d143381916280ff91407febeb52f2b60f33cf","data":"0x3850c7bd"},"latest"],"id":6},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7f670f78b17dec44d5ef68a48740b6f8849cc2e6","data":"0x0902f1ac"},"latest"],"id":7},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6cdcb1c4a4d1c3c6d054b27ac5b77e89eafb971d","data":"0x0902f1ac"},"latest"],"id":8},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x1d4dab3f27c7f656b6323c1d6ef713b48a8f72f1","data":"0x3850c7bd"},"latest"],"id":9},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x21594b992f68495dd28d605834b58889d0a727c7","data":"0x0902f1ac"},"latest"],"id":10},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xfbb6eed8e7aa03b138556eedaf5d271a5e1e43ef","data":"0x3850c7bd"},"latest"],"id":11},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x9c38b55f9a9aba91bbcedeb12bf4428f47a6a0b8","data":"0x0902f1ac"},"latest"],"id":12},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7aea2e8a3843516afa07293a10ac8e49906dabd1","data":"0x3850c7bd"},"latest"],"id":13},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2578365b3dfa7ffe60108e181efb79feddec2319","data":"0x0902f1ac"},"latest"],"id":14},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x57713f7716e0b0f65ec116912f834e49805480d2","data":"0x3850c7bd"},"latest"],"id":15},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x41595326aabe6132fc6c7ae71af087a3a9dbc9f6","data":"0x3850c7bd"},"latest"],"id":16},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xba3f945812a83471d709bce9c3ca699a19fb46f7","data":"0x3850c7bd"},"latest"],"id":17},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x214356cc4aab907244a791ca9735292860490d5a","data":"0x0902f1ac"},"latest"],"id":18},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xc9034c3e7f58003e6ae0c8438e7c8f4598d5acaa","data":"0x3850c7bd"},"latest"],"id":19},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2c4909355b0c036840819484c3a882a95659abf3","data":"0x0902f1ac"},"latest"],"id":20},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xca11bde05977b3631167028862be2a173976ca11","data":"0x42cbb15c"},"latest"],"id":21},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xa9dafa443a02fbc907cb0093276b3e6f4ef02a46","data":"0x3850c7bd"},"latest"],"id":22},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x44ecc644449fc3a9858d2007caa8cfaa4c561f91","data":"0x0902f1ac"},"latest"],"id":23},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb94b22332abf5f89877a14cc88f2abc48c34b3df","data":"0x3850c7bd"},"latest"],"id":24},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xc211e1f853a898bd1302385ccde55f33a8c4b3f3","data":"0x3850c7bd"},"latest"],"id":25},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd56da2b74ba826f19015e6b7dd9dae1903e85da1","data":"0x3850c7bd"},"latest"],"id":26},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x5f07bb9fee6062e9d09a52e6d587c64bad6ba706","data":"0x3850c7bd"},"latest"],"id":27},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x06959273e9a65433de71f5a452d529544e07ddd0","data":"0x3850c7bd"},"latest"],"id":28},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x29ed55b18af0add137952cb3e29fb77b32fce426","data":"0x3850c7bd"},"latest"],"id":29},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x257fcbae4ac6b26a02e4fc5e1a11e4174b5ce395","data":"0x3850c7bd"},"latest"],"id":30},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xe5b5f522e98b5a2baae212d4da66b865b781db97","data":"0x3850c7bd"},"latest"],"id":31},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd5bdd66a87462a608edd28bdec91b88e16409f62","data":"0x3850c7bd"},"latest"],"id":32},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7cb770d0513c30e0cb45e4899e4a2cbeed6f9830","data":"0x3850c7bd"},"latest"],"id":33}]"#;
+    let rpc_payload = r#"[{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd0b53d9277642d899df5c87a3966a349a798f224","data":"0x3850c7bd"},"latest"],"id":1},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7279c08a36333e12c3fc81747963264c100d66fb","data":"0x3850c7bd"},"latest"],"id":2},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xcdac0d6c6c59727a65f871236188350531885c43","data":"0x0902f1ac"},"latest"],"id":3},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb4cb800910b228ed3d0834cf79d697127bbb00e5","data":"0x3850c7bd"},"latest"],"id":4},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38","data":"0x3850c7bd"},"latest"],"id":5},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x3d5d143381916280ff91407febeb52f2b60f33cf","data":"0x3850c7bd"},"latest"],"id":6},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7f670f78b17dec44d5ef68a48740b6f8849cc2e6","data":"0x0902f1ac"},"latest"],"id":7},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x6cdcb1c4a4d1c3c6d054b27ac5b77e89eafb971d","data":"0x0902f1ac"},"latest"],"id":8},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x9c087eb773291e50cf6c6a90ef0f4500e349b903","data":"0x3850c7bd"},"latest"],"id":9},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x21594b992f68495dd28d605834b58889d0a727c7","data":"0x0902f1ac"},"latest"],"id":10},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xfbb6eed8e7aa03b138556eedaf5d271a5e1e43ef","data":"0x3850c7bd"},"latest"],"id":11},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x9c38b55f9a9aba91bbcedeb12bf4428f47a6a0b8","data":"0x0902f1ac"},"latest"],"id":12},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7aea2e8a3843516afa07293a10ac8e49906dabd1","data":"0x3850c7bd"},"latest"],"id":13},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2578365b3dfa7ffe60108e181efb79feddec2319","data":"0x0902f1ac"},"latest"],"id":14},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x57713f7716e0b0f65ec116912f834e49805480d2","data":"0x3850c7bd"},"latest"],"id":15},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x41595326aabe6132fc6c7ae71af087a3a9dbc9f6","data":"0x3850c7bd"},"latest"],"id":16},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xba3f945812a83471d709bce9c3ca699a19fb46f7","data":"0x3850c7bd"},"latest"],"id":17},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x214356cc4aab907244a791ca9735292860490d5a","data":"0x0902f1ac"},"latest"],"id":18},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xc9034c3e7f58003e6ae0c8438e7c8f4598d5acaa","data":"0x3850c7bd"},"latest"],"id":19},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2c4909355b0c036840819484c3a882a95659abf3","data":"0x0902f1ac"},"latest"],"id":20},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xca11bde05977b3631167028862be2a173976ca11","data":"0x42cbb15c"},"latest"],"id":21},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xa9dafa443a02fbc907cb0093276b3e6f4ef02a46","data":"0x3850c7bd"},"latest"],"id":22},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x44ecc644449fc3a9858d2007caa8cfaa4c561f91","data":"0x0902f1ac"},"latest"],"id":23},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xb94b22332abf5f89877a14cc88f2abc48c34b3df","data":"0x3850c7bd"},"latest"],"id":24},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xc211e1f853a898bd1302385ccde55f33a8c4b3f3","data":"0x3850c7bd"},"latest"],"id":25},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xd56da2b74ba826f19015e6b7dd9dae1903e85da1","data":"0x3850c7bd"},"latest"],"id":26},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x5f07bb9fee6062e9d09a52e6d587c64bad6ba706","data":"0x3850c7bd"},"latest"],"id":27},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x06959273e9a65433de71f5a452d529544e07ddd0","data":"0x3850c7bd"},"latest"],"id":28},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x29ed55b18af0add137952cb3e29fb77b32fce426","data":"0x3850c7bd"},"latest"],"id":29},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x257fcbae4ac6b26a02e4fc5e1a11e4174b5ce395","data":"0x3850c7bd"},"latest"],"id":30},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xe5b5f522e98b5a2baae212d4da66b865b781db97","data":"0x3850c7bd"},"latest"],"id":31},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x54d281c7cc029a9dd71f9acb7487dd95b1eecf5a","data":"0x3850c7bd"},"latest"],"id":32},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x7cb770d0513c30e0cb45e4899e4a2cbeed6f9830","data":"0x3850c7bd"},"latest"],"id":33},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x5aa4ad647580bfe86258d300bc9852f4434e2c61","data":"0x3850c7bd"},"latest"],"id":34},{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0x2058808c3eb85be185a457487bdce4bc1cc23cb2","data":"0x3850c7bd"},"latest"],"id":35}]"#;
     let _ = fs::write(base_req_file, rpc_payload);
 
     let arb_req_file = "logs/arb_rpc_req.json";
@@ -1338,22 +1346,21 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
         }
     }
 
-    // Parse id=9 (Base Mainnet UniV3 WETH/VIRTUAL 30-bps pool 0x1d4d...72f1 slot0)
+    // Parse id=9 (Base Mainnet UniV3 WETH/VIRTUAL 5-bps pool 0x9c08...B903 slot0, verified $510k liquidity)
     if let Some(hex) = extract_rpc_result(resp, 9) {
         if hex.len() >= 66 {
             if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
                 let ratio = (sqrt_p as f64) / q96;
                 let weth_per_virt = ratio * ratio; // 18 decimals / 18 decimals
                 if weth_per_virt > 0.00001 && weth_per_virt < 0.1 {
-                    // Realistic active tick depth for concentrated UniV3 liquidity (L=3217 ETH, ~193k VIRTUAL)
                     out.push(LiveBookTicker {
                         venue: VenueId::BaseUniV3,
                         base: CurrencyId::VIRTUAL,
                         quote: CurrencyId::WETH,
                         bid_price: weth_per_virt * 0.99999,
-                        bid_qty: 150_000.0,
+                        bid_qty: 300_000.0,
                         ask_price: weth_per_virt * 1.00001,
-                        ask_qty: 150_000.0,
+                        ask_qty: 300_000.0,
                     });
                 }
             }
@@ -1838,9 +1845,68 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
         }
     }
 
-    // Note: PancakeSwap V3 VIRTUAL/WETH pool 0xd5bd...9f62 has only 0.52 WETH ($1,300) total liquidity on-chain.
-    // Routing through it throttles optimal trade sizing to dust ($0.14-$3.00) and shadows deep Uniswap V3 (0x1d4d, $36k liq).
-    // Deactivated to allow full-size execution through deep pools (Uniswap V3 0x1d4d + PancakeSwap V3 0x7cb7).
+    // Parse id=32 (Base Mainnet PancakeSwap V3 DEGEN/WETH 5-bps pool 0x54D2...cF5a slot0)
+    if let Some(hex) = extract_rpc_result(resp, 32) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let weth_per_degen = 1.0 / (ratio * ratio);
+                if weth_per_degen > 1e-9 && weth_per_degen < 1e-4 {
+                    out.push(LiveBookTicker {
+                        venue: VenueId::BaseAerodromeStable,
+                        base: CurrencyId::DEGEN,
+                        quote: CurrencyId::WETH,
+                        bid_price: weth_per_degen * 0.99999,
+                        bid_qty: 25_000_000.0,
+                        ask_price: weth_per_degen * 1.00001,
+                        ask_qty: 25_000_000.0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Parse id=34 (Base Mainnet UniV3 TOSHI/WETH 30-bps pool 0x5aa4...2c61 slot0)
+    if let Some(hex) = extract_rpc_result(resp, 34) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let weth_per_toshi = 1.0 / (ratio * ratio);
+                if weth_per_toshi > 1e-10 && weth_per_toshi < 1e-5 {
+                    out.push(LiveBookTicker {
+                        venue: VenueId::BaseUniV3,
+                        base: CurrencyId::TOSHI,
+                        quote: CurrencyId::WETH,
+                        bid_price: weth_per_toshi * 0.99999,
+                        bid_qty: 50_000_000.0,
+                        ask_price: weth_per_toshi * 1.00001,
+                        ask_qty: 50_000_000.0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Parse id=35 (Base Mainnet PancakeSwap V3 TOSHI/WETH 5-bps pool 0x2058...23Cb2 slot0)
+    if let Some(hex) = extract_rpc_result(resp, 35) {
+        if hex.len() >= 66 {
+            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
+                let ratio = (sqrt_p as f64) / q96;
+                let weth_per_toshi = 1.0 / (ratio * ratio);
+                if weth_per_toshi > 1e-10 && weth_per_toshi < 1e-5 {
+                    out.push(LiveBookTicker {
+                        venue: VenueId::BaseAerodromeStable,
+                        base: CurrencyId::TOSHI,
+                        quote: CurrencyId::WETH,
+                        bid_price: weth_per_toshi * 0.99999,
+                        bid_qty: 50_000_000.0,
+                        ask_price: weth_per_toshi * 1.00001,
+                        ask_qty: 50_000_000.0,
+                    });
+                }
+            }
+        }
+    }
 
     // Parse id=33 (Base Mainnet PancakeSwap V3 VIRTUAL/USDC 5-bps pool 0x7cb7...9830 slot0)
     if let Some(hex) = extract_rpc_result(resp, 33) {

@@ -203,7 +203,31 @@ impl FeeEngine {
                 (CurrencyId::WETH, CurrencyId::VIRTUAL) | (CurrencyId::VIRTUAL, CurrencyId::WETH)
             )
         {
-            return 0.0030; // 30 bps Uniswap V3 WETH/VIRTUAL pool on Base (0x1d4d...72f1)
+            return 0.0005; // 5 bps (500 pips) Uniswap V3 WETH/VIRTUAL pool on Base (0x9c08...B903) verified on-chain ($510k liquidity)
+        }
+        if matches!(venue, VenueId::BaseAerodromeStable)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::DEGEN) | (CurrencyId::DEGEN, CurrencyId::WETH)
+            )
+        {
+            return 0.0005; // 5 bps (500 pips) PancakeSwap V3 DEGEN/WETH pool on Base (0x54D2...cF5a) verified on-chain
+        }
+        if matches!(venue, VenueId::BaseAerodromeStable)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::TOSHI) | (CurrencyId::TOSHI, CurrencyId::WETH)
+            )
+        {
+            return 0.0005; // 5 bps (500 pips) PancakeSwap V3 TOSHI/WETH pool on Base (0x2058...23Cb2) verified on-chain
+        }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::TOSHI) | (CurrencyId::TOSHI, CurrencyId::WETH)
+            )
+        {
+            return 0.0030; // 30 bps (3000 pips) Uniswap V3 TOSHI/WETH pool on Base (0x5aa4...2c61) verified on-chain
         }
         if matches!(venue, VenueId::BaseAerodromeVolatile)
             && matches!(
