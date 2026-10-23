@@ -99,7 +99,7 @@ impl FeeEngine {
                 (CurrencyId::WETH, CurrencyId::AERO) | (CurrencyId::AERO, CurrencyId::WETH)
             )
         {
-            return 0.0030; // 30 bps Aerodrome V2 volatile WETH/AERO pool on Base (0x7f67...c2e6)
+            return 0.0100; // 100 bps (1.00%) Aerodrome V2 volatile WETH/AERO pool on Base (0x7f67...c2e6) verified on-chain
         }
         if matches!(venue, VenueId::BaseAerodromeVolatile)
             && matches!(
@@ -123,7 +123,7 @@ impl FeeEngine {
                 (CurrencyId::WETH, CurrencyId::VIRTUAL) | (CurrencyId::VIRTUAL, CurrencyId::WETH)
             )
         {
-            return 0.0030; // 30 bps Aerodrome V2 volatile WETH/VIRTUAL pool on Base (0x2159...27c7)
+            return 0.0100; // 100 bps (1.00%) Aerodrome V2 volatile WETH/VIRTUAL pool on Base (0x2159...27c7) verified on-chain
         }
         if matches!(venue, VenueId::BaseUniV3)
             && matches!(
