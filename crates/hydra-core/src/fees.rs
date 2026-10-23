@@ -149,6 +149,22 @@ impl FeeEngine {
         {
             return 0.0001; // 1 bps (100 pips) PancakeSwap V3 cbBTC/WETH pool on Base Mainnet (0xc211...b3f3)
         }
+        if matches!(venue, VenueId::BaseAerodromeStable)
+            && matches!(
+                (from, to),
+                (CurrencyId::WETH, CurrencyId::VIRTUAL) | (CurrencyId::VIRTUAL, CurrencyId::WETH)
+            )
+        {
+            return 0.0005; // 5 bps (500 pips) PancakeSwap V3 VIRTUAL/WETH pool on Base Mainnet (0xd5bd...9f62)
+        }
+        if matches!(venue, VenueId::BaseAerodromeStable)
+            && matches!(
+                (from, to),
+                (CurrencyId::USDC, CurrencyId::VIRTUAL) | (CurrencyId::VIRTUAL, CurrencyId::USDC)
+            )
+        {
+            return 0.0005; // 5 bps (500 pips) PancakeSwap V3 VIRTUAL/USDC pool on Base Mainnet (0x7cb7...9830)
+        }
         if matches!(venue, VenueId::BaseUniV3)
             && matches!(
                 (from, to),
