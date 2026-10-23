@@ -165,6 +165,14 @@ impl FeeEngine {
         {
             return 0.0100; // 100 bps (1.00%) Aerodrome V2 volatile WETH/AERO pool on Base (0x7f67...c2e6) verified on-chain
         }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
+                (CurrencyId::USDC, CurrencyId::AERO) | (CurrencyId::AERO, CurrencyId::USDC)
+            )
+        {
+            return 0.0005; // 5 bps (500 pips) Uniswap V3 AERO/USDC pool on Base (0xe5b5...db97)
+        }
         if matches!(venue, VenueId::BaseAerodromeVolatile)
             && matches!(
                 (from, to),
