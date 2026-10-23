@@ -420,17 +420,7 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                             (safe_input_base * p_eur, "FIRE_FLASH_OPTIMAL", safe_net_eur, true)
                         }
                     } else {
-                        // Bounded conservative fraction (2%) of the bottleneck pool depth
-                        let min_cap = (0..hops).map(|h| graph.edge(best.edge_ids[h]).max_capacity_in).fold(f64::INFINITY, f64::min);
-                        let conservative_notional_base = (min_cap * 0.02).clamp(100.0 / p_eur, max_flash_credit_eur / p_eur);
-                        let conservative_notional = conservative_notional_base * p_eur;
-                        let gross = conservative_notional * (best.net_profit_bps * 1e-4);
-                        let net = (gross - 0.004).max(0.0);
-                        if net >= cfg.min_dex_profit_eur {
-                            (conservative_notional, "FIRE_FLASH_BALANCER_0FEE", net, true)
-                        } else {
-                            (0.0, "HOLD_DUST_PROFIT", 0.0, false)
-                        }
+                        (0.0, "HOLD_SLIPPAGE", 0.0, false)
                     }
                 } else {
                     let raw_notional = starting_equity_eur + cumulative_cex_mesh_pnl_eur + cumulative_dex_atomic_pnl_eur;
@@ -1265,14 +1255,15 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                     let aero_per_weth = (r1 as f64) / (r0 as f64);
                     let weth_per_aero = 1.0 / aero_per_weth;
                     if aero_per_weth > 10.0 && aero_per_weth < 100_000.0 {
+                        let aero_reserve = (r1 as f64) / 1e18;
                         out.push(LiveBookTicker {
                             venue: VenueId::BaseAerodromeVolatile,
                             base: CurrencyId::AERO,
                             quote: CurrencyId::WETH,
                             bid_price: weth_per_aero * 0.99999,
-                            bid_qty: 250_000.0,
+                            bid_qty: aero_reserve,
                             ask_price: weth_per_aero * 1.00001,
-                            ask_qty: 250_000.0,
+                            ask_qty: aero_reserve,
                         });
                     }
                 }
@@ -1297,9 +1288,9 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                             base: CurrencyId::AERO,
                             quote: CurrencyId::USDC,
                             bid_price: usdc_per_aero * 0.99999,
-                            bid_qty: 300_000.0,
+                            bid_qty: aero_val,
                             ask_price: usdc_per_aero * 1.00001,
-                            ask_qty: 300_000.0,
+                            ask_qty: aero_val,
                         });
                     }
                 }
