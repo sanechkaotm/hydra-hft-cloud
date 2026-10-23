@@ -404,7 +404,7 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                     let internal_cap_base = 50.0 / p_eur;
                     let flash_cap_base = max_flash_credit_eur / p_eur;
                     let gas_base = 0.004 / p_eur;
-                    let min_profit_base = 0.01 / p_eur;
+                    let min_profit_base = 0.001 / p_eur; // Sizer solver positivity floor (0.1 cent); final threshold checked on safe_net_eur below
 
                     let sizing = OptimalTradeSizer::size_dex_amm_cycle(
                         &amm_hops[..hops],
@@ -1831,9 +1831,9 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                         base: CurrencyId::VIRTUAL,
                         quote: CurrencyId::WETH,
                         bid_price: weth_per_virt * 0.99999,
-                        bid_qty: 75_000.0,
+                        bid_qty: 250_000.0,
                         ask_price: weth_per_virt * 1.00001,
-                        ask_qty: 75_000.0,
+                        ask_qty: 250_000.0,
                     });
                 }
             }
@@ -1852,9 +1852,9 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                         base: CurrencyId::VIRTUAL,
                         quote: CurrencyId::USDC,
                         bid_price: usdc_per_virt * 0.99999,
-                        bid_qty: 200_000.0,
+                        bid_qty: 350_000.0,
                         ask_price: usdc_per_virt * 1.00001,
-                        ask_qty: 200_000.0,
+                        ask_qty: 350_000.0,
                     });
                 }
             }
