@@ -80,6 +80,22 @@ impl FeeEngine {
         if matches!(venue, VenueId::BaseUniV3)
             && matches!(
                 (from, to),
+                (CurrencyId::CBETH, CurrencyId::WETH) | (CurrencyId::WETH, CurrencyId::CBETH)
+            )
+        {
+            return 0.0001; // 1 bps (100 pips) Uniswap V3 cbETH/WETH pool on Base (0xa9da...2a46)
+        }
+        if matches!(venue, VenueId::BaseAerodromeStable)
+            && matches!(
+                (from, to),
+                (CurrencyId::CBETH, CurrencyId::WETH) | (CurrencyId::WETH, CurrencyId::CBETH)
+            )
+        {
+            return 0.0001; // 1 bps (100 pips) PancakeSwap V3 cbETH/WETH pool on Base (0x257f...e395)
+        }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
                 (CurrencyId::USDC, CurrencyId::USDT) | (CurrencyId::USDT, CurrencyId::USDC)
             )
         {
