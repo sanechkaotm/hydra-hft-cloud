@@ -390,12 +390,16 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         amm_hops[h] = AmmPoolHop::new(r_in, r_out, edge.fee_fraction);
                     }
 
-                    // Safety Improvement 1: Bounded Meme FlashLoan Cap (€350 for BRETT/DEGEN/TOSHI, €15,000 for fundamentals)
+                    // Safety Improvement 1: Bounded Meme/Alt FlashLoan Cap (€100 for BRETT/DEGEN/TOSHI/VIRTUAL/AERO, €15,000 for fundamentals)
                     let is_meme_cycle = (0..hops).any(|h| {
                         let n = best.nodes[h];
-                        n == CurrencyId::BRETT || n == CurrencyId::DEGEN || n == CurrencyId::TOSHI
+                        n == CurrencyId::BRETT
+                            || n == CurrencyId::DEGEN
+                            || n == CurrencyId::TOSHI
+                            || n == CurrencyId::VIRTUAL
+                            || n == CurrencyId::AERO
                     });
-                    let max_flash_credit_eur = if is_meme_cycle { 350.0 } else { 15_000.0 };
+                    let max_flash_credit_eur = if is_meme_cycle { 100.0 } else { 15_000.0 };
 
                     let internal_cap_base = 50.0 / p_eur;
                     let flash_cap_base = max_flash_credit_eur / p_eur;
@@ -1309,14 +1313,15 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                 let ratio = (sqrt_p as f64) / q96;
                 let weth_per_virt = ratio * ratio; // 18 decimals / 18 decimals
                 if weth_per_virt > 0.00001 && weth_per_virt < 0.1 {
+                    // Realistic active tick depth for concentrated UniV3 liquidity
                     out.push(LiveBookTicker {
                         venue: VenueId::BaseUniV3,
                         base: CurrencyId::VIRTUAL,
                         quote: CurrencyId::WETH,
                         bid_price: weth_per_virt * 0.99999,
-                        bid_qty: 3_000_000.0,
+                        bid_qty: 25_000.0,
                         ask_price: weth_per_virt * 1.00001,
-                        ask_qty: 3_000_000.0,
+                        ask_qty: 25_000.0,
                     });
                 }
             }
@@ -1332,15 +1337,17 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
             ) {
                 if r0 > 0 && r1 > 0 {
                     let weth_per_virt = (r1 as f64) / (r0 as f64);
+                    let virt_reserves = (r0 as f64) / 1e18;
+                    let dynamic_qty = (virt_reserves * 0.10).min(75_000.0);
                     if weth_per_virt > 0.00001 && weth_per_virt < 0.1 {
                         out.push(LiveBookTicker {
                             venue: VenueId::BaseAerodromeVolatile,
                             base: CurrencyId::VIRTUAL,
                             quote: CurrencyId::WETH,
                             bid_price: weth_per_virt * 0.99999,
-                            bid_qty: 3_500_000.0,
+                            bid_qty: dynamic_qty,
                             ask_price: weth_per_virt * 1.00001,
-                            ask_qty: 3_500_000.0,
+                            ask_qty: dynamic_qty,
                         });
                     }
                 }
