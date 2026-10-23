@@ -1076,7 +1076,7 @@ fn populate_graph_from_live_quotes(
         VenueId::BaseUniV3,
         1.0,
         0.0,
-        500.0,
+        10_000_000.0,
         now_ns,
     );
     graph.upsert_edge(
@@ -1085,7 +1085,7 @@ fn populate_graph_from_live_quotes(
         VenueId::BaseUniV3,
         1.0,
         0.0,
-        500.0,
+        10_000_000.0,
         now_ns,
     );
     graph.upsert_edge(
@@ -1094,7 +1094,7 @@ fn populate_graph_from_live_quotes(
         VenueId::BaseCurve,
         1.0,
         0.0001,
-        500_000.0,
+        10_000_000.0,
         now_ns,
     );
     graph.upsert_edge(
@@ -1103,7 +1103,7 @@ fn populate_graph_from_live_quotes(
         VenueId::BaseCurve,
         1.0,
         0.0001,
-        500_000.0,
+        10_000_000.0,
         now_ns,
     );
 }
