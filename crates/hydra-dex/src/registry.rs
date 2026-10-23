@@ -22,6 +22,8 @@ impl L2MainnetRegistry {
 
     pub const BASE_USDC: [u8; 20] =
         hex_20(*b"833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
+    pub const BASE_USDT: [u8; 20] =
+        hex_20(*b"fde4C96c8593536E31F229EA8f37b2ADa2699bb2");
     pub const BASE_EURC: [u8; 20] =
         hex_20(*b"60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42");
     pub const BASE_WETH: [u8; 20] =
@@ -73,7 +75,8 @@ impl L2MainnetRegistry {
     pub const fn base_token_address(currency: CurrencyId) -> [u8; 20] {
         match currency {
             CurrencyId::EUR | CurrencyId::EURC => Self::BASE_EURC,
-            CurrencyId::USD | CurrencyId::USDC | CurrencyId::USDT => Self::BASE_USDC,
+            CurrencyId::USD | CurrencyId::USDC => Self::BASE_USDC,
+            CurrencyId::USDT => Self::BASE_USDT,
             CurrencyId::ETH | CurrencyId::WETH => Self::BASE_WETH,
             CurrencyId::DAI => Self::BASE_DAI,
             CurrencyId::AERO => Self::BASE_AERO,

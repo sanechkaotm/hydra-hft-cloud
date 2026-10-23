@@ -77,6 +77,22 @@ impl FeeEngine {
         {
             return 0.0001; // 1 bps (100 pips) Uniswap V3 WETH/USDC pool on Base (0xb4cb...00e5) & Arbitrum (0x6f38...595f)
         }
+        if matches!(venue, VenueId::BaseUniV3)
+            && matches!(
+                (from, to),
+                (CurrencyId::USDC, CurrencyId::USDT) | (CurrencyId::USDT, CurrencyId::USDC)
+            )
+        {
+            return 0.0001; // 1 bps (100 pips) Uniswap V3 USDC/USDT pool on Base (0xd56d...5da1)
+        }
+        if matches!(venue, VenueId::BaseAerodromeStable)
+            && matches!(
+                (from, to),
+                (CurrencyId::USDC, CurrencyId::USDT) | (CurrencyId::USDT, CurrencyId::USDC)
+            )
+        {
+            return 0.0001; // 1 bps (100 pips) PancakeSwap V3 USDC/USDT pool on Base (0x5f07...a706)
+        }
         if matches!(venue, VenueId::BaseAerodromeStable)
             && matches!(
                 (from, to),
