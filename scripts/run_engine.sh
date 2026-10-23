@@ -26,6 +26,12 @@ pip install -q eth-account python-dotenv web3 requests websockets 2>/dev/null ||
 # Determine execution mode
 if [ -n "${HYDRA_HOT_WALLET_PRIVKEY:-}" ] && [ -n "${HYDRA_EXECUTOR_CONTRACT:-}" ]; then
     echo "[RUNNER] Live credentials detected! Starting in LIVE ON-CHAIN MODE..."
+
+    # Ensure clean restart of background daemons
+    pkill -f "live_broadcaster.py" 2>/dev/null || true
+    pkill -f "ws_listener.py" 2>/dev/null || true
+    pkill -f "telegram_bot.py" 2>/dev/null || true
+    sleep 0.5
     
     # 1. Start Anomaly Guardian Broadcaster (UDP 8765) if not running
     if ! pgrep -f "live_broadcaster.py" > /dev/null 2>&1; then
@@ -48,7 +54,7 @@ if [ -n "${HYDRA_HOT_WALLET_PRIVKEY:-}" ] && [ -n "${HYDRA_EXECUTOR_CONTRACT:-}"
     CAPITAL="${HYDRA_INITIAL_CAPITAL_EUR:-15.00}"
     echo "[RUNNER] Executing hydra-node --paper-48h --live --capital $CAPITAL..."
     MIN_DEX_PROFIT="${HYDRA_MIN_DEX_PROFIT_EUR:-0.20}"
-    MIN_BPS="${HYDRA_MIN_NET_PROFIT_BPS:-10.0}"
+    MIN_BPS="${HYDRA_MIN_NET_PROFIT_BPS:-4.0}"
     echo "[RUNNER] Executing hydra-node --paper-48h --live --capital $CAPITAL --min-dex-profit $MIN_DEX_PROFIT --min-bps $MIN_BPS --polls 0..."
     exec ./target/release/hydra-node --paper-48h --live --capital "$CAPITAL" --min-dex-profit "$MIN_DEX_PROFIT" --min-bps "$MIN_BPS" --polls 0
 else

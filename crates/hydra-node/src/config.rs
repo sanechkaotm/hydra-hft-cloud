@@ -50,7 +50,7 @@ impl Default for NodeConfig {
             mode: ExecutionMode::DryRun,
             cpu_core_id: 2,
             initial_capital_eur: 150.0,
-            min_net_profit_bps: 10.0,
+            min_net_profit_bps: 4.0,
             min_dex_profit_eur: 0.20,
             mesh_bind_addr: "127.0.0.1:0".parse().unwrap(),
             mesh_peers: [None, None],

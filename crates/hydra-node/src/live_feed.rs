@@ -426,10 +426,10 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         let conservative_notional = conservative_notional_base * p_eur;
                         let gross = conservative_notional * (best.net_profit_bps * 1e-4);
                         let net = (gross - 0.004).max(0.0);
-                        if net > 0.01 {
+                        if net >= cfg.min_dex_profit_eur {
                             (conservative_notional, "FIRE_FLASH_BALANCER_0FEE", net, true)
                         } else {
-                            (0.0, "HOLD_SLIPPAGE", 0.0, false)
+                            (0.0, "HOLD_DUST_PROFIT", 0.0, false)
                         }
                     }
                 } else {

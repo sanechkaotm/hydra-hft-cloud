@@ -190,13 +190,14 @@ class AnomalyGuardian:
         route = cycle_info.get("route", "Unknown Route")
         net_profit_eur = cycle_info.get("net_profit_eur", 0.0)
 
-        # Enforce minimum €0.50 profit threshold to avoid wasting simulation on dust
-        if net_profit_eur < 0.50:
-            self.log(f"[DUST GUARD] Ignored trigger with sub-optimal profit: €{net_profit_eur:.4f} < €0.50 floor")
-            return False, "Dust profit" 
+        # Enforce minimum profit threshold to avoid wasting simulation on dust
+        min_profit_eur = float(os.getenv("HYDRA_MIN_DEX_PROFIT_EUR", "0.20"))
+        if net_profit_eur < min_profit_eur:
+            self.log(f"[DUST GUARD] Ignored trigger with sub-optimal profit: €{net_profit_eur:.4f} < €{min_profit_eur:.2f} floor")
+            return False, "Dust profit"
 
-        # 1. Top-1 Competitive Sequencer Bribe (Aggressively outbids competing searchers: 0.08 Gwei floor + 25% profit share)
-        min_floor_tip = 80_000_000  # 0.08 Gwei floor (16x higher than 0.005 Gwei baseline)
+        # 1. Top-1 Competitive Sequencer Bribe (Aggressively outbids competing searchers: 0.025 Gwei floor + 20-25% profit share)
+        min_floor_tip = 25_000_000  # 0.025 Gwei floor (5x higher than 0.005 Gwei baseline)
         eth_eur = 2500.0
         profit_share = 0.25 if net_profit_eur >= 1.00 else 0.20
         profit_bribe_wei = int(((net_profit_eur * profit_share) / eth_eur) * 1e18 / 380_000)
