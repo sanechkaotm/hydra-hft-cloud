@@ -1916,11 +1916,22 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
 }
 
 fn extract_rpc_result(json: &str, id: u32) -> Option<&str> {
-    let id_pat1 = format!("\"id\":{}", id);
-    let id_pat2 = format!("\"id\": {}", id);
+    let id_str = id.to_string();
+    let pat_space = "\"id\": ";
+    let pat = "\"id\":";
     for chunk in json.split('{') {
-        if chunk.contains(&id_pat1) || chunk.contains(&id_pat2) {
-            return extract_json_str(chunk, "\"result\":\"");
+        let after_pat = if let Some(idx) = chunk.find(pat_space) {
+            Some(&chunk[idx + pat_space.len()..])
+        } else if let Some(idx) = chunk.find(pat) {
+            Some(&chunk[idx + pat.len()..])
+        } else {
+            None
+        };
+        if let Some(s) = after_pat {
+            let digits = s.split(|c: char| !c.is_ascii_digit()).next().unwrap_or("");
+            if digits == id_str {
+                return extract_json_str(chunk, "\"result\":\"");
+            }
         }
     }
     None
