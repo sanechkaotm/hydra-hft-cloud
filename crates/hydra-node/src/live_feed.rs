@@ -382,12 +382,19 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                 let (trade_notional, action_label, net_eur, is_profitable) = if uses_l2_dex {
                     let hops = (best.hop_count as usize).min(4);
                     let mut amm_hops = [AmmPoolHop::default(); 4];
+                    let mut amm_hop_count = 0;
                     for h in 0..hops {
+                        let t_in = L2MainnetRegistry::base_token_address(best.nodes[h]);
+                        let t_out = L2MainnetRegistry::base_token_address(best.nodes[h + 1]);
+                        if t_in == t_out {
+                            continue;
+                        }
                         let e_id = best.edge_ids[h];
                         let edge = graph.edge(e_id);
                         let r_in = edge.max_capacity_in.max(10.0);
                         let r_out = (edge.max_capacity_in * edge.rate).max(10.0);
-                        amm_hops[h] = AmmPoolHop::new(r_in, r_out, edge.fee_fraction);
+                        amm_hops[amm_hop_count] = AmmPoolHop::new(r_in, r_out, edge.fee_fraction);
+                        amm_hop_count += 1;
                     }
 
                     // Safety Improvement 1: Bounded Meme/Alt FlashLoan Cap (€100 for BRETT/DEGEN/TOSHI/VIRTUAL/AERO, €15,000 for fundamentals)
@@ -406,14 +413,18 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                     let gas_base = 0.004 / p_eur;
                     let min_profit_base = 0.001 / p_eur; // Sizer solver positivity floor (0.1 cent); final threshold checked on safe_net_eur below
 
-                    let sizing = OptimalTradeSizer::size_dex_amm_cycle(
-                        &amm_hops[..hops],
-                        internal_cap_base,
-                        flash_cap_base,
-                        0.0, // Balancer Vault 0.00% fee line
-                        gas_base,
-                        min_profit_base,
-                    );
+                    let sizing = if amm_hop_count > 0 {
+                        OptimalTradeSizer::size_dex_amm_cycle(
+                            &amm_hops[..amm_hop_count],
+                            internal_cap_base,
+                            flash_cap_base,
+                            0.0, // Balancer Vault 0.00% fee line
+                            gas_base,
+                            min_profit_base,
+                        )
+                    } else {
+                        hydra_graph::sizing::DexSizingResult::default()
+                    };
                     if sizing.executable && sizing.executable_input_base > 0.0 {
                         // 30% safety buffer for slippage & price impact protection
                         let safe_input_base = sizing.executable_input_base * 0.70;
@@ -478,7 +489,14 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                         // Encode real HydraAtomicExecutor.sol calldata (provider 1 = Balancer Vault 0% fee)
                         let hops = (best.hop_count as usize).min(4);
                         let mut steps = [AbiSwapStep::default(); 4];
+                        let mut valid_step_count = 0;
                         for h in 0..hops {
+                            let token_in = L2MainnetRegistry::base_token_address(best.nodes[h]);
+                            let token_out = L2MainnetRegistry::base_token_address(best.nodes[h + 1]);
+                            if token_in == token_out {
+                                // Skip identity step (e.g. WETH <-> ETH 1:1 wrap representation in graph)
+                                continue;
+                            }
                             let e_id = best.edge_ids[h];
                             let edge = graph.edge(e_id);
                             let (dex_type, pool_or_router, fee_tier) = match edge.venue {
@@ -530,15 +548,16 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                                     (3u8, L2MainnetRegistry::BASE_AERODROME_ROUTER, 0u32)
                                 }
                             };
-                            steps[h] = AbiSwapStep {
+                            steps[valid_step_count] = AbiSwapStep {
                                 dex_type,
                                 pool_or_router,
-                                token_in: L2MainnetRegistry::base_token_address(best.nodes[h]),
-                                token_out: L2MainnetRegistry::base_token_address(best.nodes[h + 1]),
+                                token_in,
+                                token_out,
                                 fee_tier,
                                 curve_index_in: 0,
                                 curve_index_out: 1,
                             };
+                            valid_step_count += 1;
                         }
                         let mut cd_buf = [0u8; 1536];
                         let loan_token = L2MainnetRegistry::base_token_address(best.nodes[0]);
@@ -570,11 +589,11 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                             loan_amount_wei,
                             0, // zero internal contribution
                             min_net_profit_wei,
-                            &steps[..hops],
+                            &steps[..valid_step_count],
                             &mut cd_buf,
                         );
 
-                        if cfg.mode == crate::config::ExecutionMode::Live {
+                        if valid_step_count >= 2 && cfg.mode == crate::config::ExecutionMode::Live {
                             let mut cd_hex = String::with_capacity(2 + cd_len * 2);
                             cd_hex.push_str("0x");
                             for b in &cd_buf[..cd_len] {
