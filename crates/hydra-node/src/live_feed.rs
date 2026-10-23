@@ -1326,15 +1326,15 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                 let ratio = (sqrt_p as f64) / q96;
                 let weth_per_virt = ratio * ratio; // 18 decimals / 18 decimals
                 if weth_per_virt > 0.00001 && weth_per_virt < 0.1 {
-                    // Realistic active tick depth for concentrated UniV3 liquidity
+                    // Realistic active tick depth for concentrated UniV3 liquidity (L=3217 ETH, ~193k VIRTUAL)
                     out.push(LiveBookTicker {
                         venue: VenueId::BaseUniV3,
                         base: CurrencyId::VIRTUAL,
                         quote: CurrencyId::WETH,
                         bid_price: weth_per_virt * 0.99999,
-                        bid_qty: 25_000.0,
+                        bid_qty: 150_000.0,
                         ask_price: weth_per_virt * 1.00001,
-                        ask_qty: 25_000.0,
+                        ask_qty: 150_000.0,
                     });
                 }
             }
@@ -1831,9 +1831,9 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                         base: CurrencyId::VIRTUAL,
                         quote: CurrencyId::WETH,
                         bid_price: weth_per_virt * 0.99999,
-                        bid_qty: 25_000.0,
+                        bid_qty: 75_000.0,
                         ask_price: weth_per_virt * 1.00001,
-                        ask_qty: 25_000.0,
+                        ask_qty: 75_000.0,
                     });
                 }
             }
@@ -1852,9 +1852,9 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
                         base: CurrencyId::VIRTUAL,
                         quote: CurrencyId::USDC,
                         bid_price: usdc_per_virt * 0.99999,
-                        bid_qty: 25_000.0,
+                        bid_qty: 200_000.0,
                         ask_price: usdc_per_virt * 1.00001,
-                        ask_qty: 25_000.0,
+                        ask_qty: 200_000.0,
                     });
                 }
             }
