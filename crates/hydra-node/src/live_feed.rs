@@ -442,7 +442,7 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
 
                 if !is_profitable || net_eur <= 0.0 {
                     hold_cycles_count += 1;
-                    ("HOLD_SLIPPAGE", 0.0, 0.0, String::new())
+                    (action_label, 0.0, 0.0, String::new())
                 } else {
                     executed_cycles_count += 1;
                     last_fired_gross_bps = gross_bps;
@@ -949,6 +949,13 @@ fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
             fetch_url("https://api.kraken.com/0/public/Ticker?pair=EURUSD,EURGBP,EURCHF,EURJPY,GBPUSD,USDCHF,USDJPY,USDTZUSD,USDTEUR,USDCUSD,USDCEUR,XXBTZEUR,XXBTZUSD,XETHZEUR,XETHZUSD")
         });
         let h_base = s.spawn(|| {
+            let base_url = std::env::var("HYDRA_ALCHEMY_KEY")
+                .ok()
+                .filter(|k| !k.trim().is_empty())
+                .map(|k| format!("https://base-mainnet.g.alchemy.com/v2/{}", k))
+                .or_else(|| std::env::var("HYDRA_BASE_RPC_URL").ok())
+                .unwrap_or_else(|| "https://base-rpc.publicnode.com".to_string());
+
             let primary = Command::new(curl_bin())
                 .args([
                     "-s",
@@ -958,7 +965,7 @@ fn fetch_all_trinode_live_quotes(tickers: &mut Vec<LiveBookTicker>) -> f64 {
                     "\n__HYDRA_WIRE__:%{time_total}:%{time_appconnect}",
                     "-X",
                     "POST",
-                    "https://base-rpc.publicnode.com",
+                    &base_url,
                     "-H",
                     "Content-Type: application/json",
                     "--data-binary",

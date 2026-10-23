@@ -47,7 +47,10 @@ if [ -n "${HYDRA_HOT_WALLET_PRIVKEY:-}" ] && [ -n "${HYDRA_EXECUTOR_CONTRACT:-}"
 
     CAPITAL="${HYDRA_INITIAL_CAPITAL_EUR:-15.00}"
     echo "[RUNNER] Executing hydra-node --paper-48h --live --capital $CAPITAL..."
-    exec ./target/release/hydra-node --paper-48h --live --capital "$CAPITAL" --polls 0
+    MIN_DEX_PROFIT="${HYDRA_MIN_DEX_PROFIT_EUR:-0.20}"
+    MIN_BPS="${HYDRA_MIN_NET_PROFIT_BPS:-10.0}"
+    echo "[RUNNER] Executing hydra-node --paper-48h --live --capital $CAPITAL --min-dex-profit $MIN_DEX_PROFIT --min-bps $MIN_BPS --polls 0..."
+    exec ./target/release/hydra-node --paper-48h --live --capital "$CAPITAL" --min-dex-profit "$MIN_DEX_PROFIT" --min-bps "$MIN_BPS" --polls 0
 else
     echo "[RUNNER] No live keys in .env. Running in 48-Hour Paper Validation mode..."
     exec ./target/release/hydra-node --paper-48h --capital 150.00 --polls 0

@@ -50,8 +50,8 @@ impl Default for NodeConfig {
             mode: ExecutionMode::DryRun,
             cpu_core_id: 2,
             initial_capital_eur: 150.0,
-            min_net_profit_bps: 15.0,
-            min_dex_profit_eur: 0.50,
+            min_net_profit_bps: 10.0,
+            min_dex_profit_eur: 0.20,
             mesh_bind_addr: "127.0.0.1:0".parse().unwrap(),
             mesh_peers: [None, None],
             mesh_mac_key: *b"HYDRA_HFT_V4_MESH_MAC_SECRET_KEY",
@@ -181,6 +181,18 @@ impl NodeConfig {
                 }
                 "--executor" if i + 1 < args.len() => {
                     self.executor_contract = Some(args[i + 1].clone());
+                    i += 2;
+                }
+                "--min-dex-profit" if i + 1 < args.len() => {
+                    if let Ok(d) = args[i + 1].parse::<f64>() {
+                        self.min_dex_profit_eur = d;
+                    }
+                    i += 2;
+                }
+                "--min-bps" if i + 1 < args.len() => {
+                    if let Ok(b) = args[i + 1].parse::<f64>() {
+                        self.min_net_profit_bps = b;
+                    }
                     i += 2;
                 }
                 "--polls" if i + 1 < args.len() => {
