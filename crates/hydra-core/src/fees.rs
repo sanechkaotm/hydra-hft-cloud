@@ -67,7 +67,7 @@ impl FeeEngine {
                 (CurrencyId::WETH, CurrencyId::USDC) | (CurrencyId::USDC, CurrencyId::WETH)
             )
         {
-            return 0.0005; // 5 bps Aerodrome Slipstream WETH/USDC pool on Base Mainnet
+            return 0.0030; // 30 bps Aerodrome V2 volatile WETH/USDC pool on Base Mainnet (0xcdac...5c43)
         }
         if matches!(venue, VenueId::BaseUniV3 | VenueId::ArbitrumUniV3)
             && matches!(
@@ -221,7 +221,7 @@ impl FeeEngine {
                 let pips = custom_uni_v3_fee_pips.unwrap_or(500); // default 5 bps (500 pips)
                 (pips as f64) * 1e-6
             }
-            VenueId::BaseAerodromeVolatile | VenueId::ArbitrumCamelotV2 => 0.0020, // 20 bps
+            VenueId::BaseAerodromeVolatile | VenueId::ArbitrumCamelotV2 => 0.0030, // 30 bps
             VenueId::BaseAerodromeStable | VenueId::BaseCurve | VenueId::ArbitrumCurve => 0.0001, // 1 bps
         }
     }

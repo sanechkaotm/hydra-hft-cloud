@@ -17,6 +17,8 @@ impl L2MainnetRegistry {
         hex_20(*b"cF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43");
     pub const BASE_UNIV3_ROUTER02: [u8; 20] =
         hex_20(*b"2626664c2603336E57B271c5C0b26F421741e481");
+    pub const BASE_PANCAKESWAP_ROUTER: [u8; 20] =
+        hex_20(*b"1b81D678ffb9C0263b24A97847620C99d213eB14");
 
     pub const BASE_USDC: [u8; 20] =
         hex_20(*b"833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
