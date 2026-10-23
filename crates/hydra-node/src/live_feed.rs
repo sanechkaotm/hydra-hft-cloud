@@ -1838,26 +1838,9 @@ fn parse_base_and_arb_dex_pools(resp: &str, arb_resp: &str, out: &mut Vec<LiveBo
         }
     }
 
-    // Parse id=32 (Base Mainnet PancakeSwap V3 VIRTUAL/WETH 5-bps pool 0xd5bd...9f62 slot0)
-    if let Some(hex) = extract_rpc_result(resp, 32) {
-        if hex.len() >= 66 {
-            if let Ok(sqrt_p) = u128::from_str_radix(&hex[34..66], 16) {
-                let ratio = (sqrt_p as f64) / q96;
-                let weth_per_virt = ratio * ratio; // 18 decimals / 18 decimals
-                if weth_per_virt > 0.00001 && weth_per_virt < 0.1 {
-                    out.push(LiveBookTicker {
-                        venue: VenueId::BaseAerodromeStable,
-                        base: CurrencyId::VIRTUAL,
-                        quote: CurrencyId::WETH,
-                        bid_price: weth_per_virt * 0.99999,
-                        bid_qty: 20_000.0,
-                        ask_price: weth_per_virt * 1.00001,
-                        ask_qty: 20_000.0,
-                    });
-                }
-            }
-        }
-    }
+    // Note: PancakeSwap V3 VIRTUAL/WETH pool 0xd5bd...9f62 has only 0.52 WETH ($1,300) total liquidity on-chain.
+    // Routing through it throttles optimal trade sizing to dust ($0.14-$3.00) and shadows deep Uniswap V3 (0x1d4d, $36k liq).
+    // Deactivated to allow full-size execution through deep pools (Uniswap V3 0x1d4d + PancakeSwap V3 0x7cb7).
 
     // Parse id=33 (Base Mainnet PancakeSwap V3 VIRTUAL/USDC 5-bps pool 0x7cb7...9830 slot0)
     if let Some(hex) = extract_rpc_result(resp, 33) {
