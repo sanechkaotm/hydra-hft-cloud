@@ -513,10 +513,12 @@ pub fn run_paper_48h_engine(cfg: &NodeConfig) {
                                         || (edge.from == CurrencyId::USDC && edge.to == CurrencyId::AERO)
                                     {
                                         500 // 5-bps pool for AERO/USDC on UniV3
+                                    } else if edge.from == CurrencyId::VIRTUAL
+                                        || edge.to == CurrencyId::VIRTUAL
+                                    {
+                                        500 // 5-bps pool for VIRTUAL/WETH on UniV3 (0x9c08...B903)
                                     } else if edge.from == CurrencyId::AERO
                                         || edge.to == CurrencyId::AERO
-                                        || edge.from == CurrencyId::VIRTUAL
-                                        || edge.to == CurrencyId::VIRTUAL
                                         || edge.from == CurrencyId::TOSHI
                                         || edge.to == CurrencyId::TOSHI
                                     {
